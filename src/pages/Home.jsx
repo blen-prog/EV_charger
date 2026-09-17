@@ -1,3 +1,5 @@
+// src/pages/Home.jsx (or your component file path)
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -14,10 +16,14 @@ import {
 export default function Home({ darkMode = false, isArabic = false }) {
   const navigate = useNavigate();
 
+  // Retrieve current logged-in user dynamically
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const userName = currentUser?.name || (isArabic ? "بلين" : "Blen");
+
   // Localization dictionary
   const t = {
-    goodMorning: isArabic ? "صباح الخير" : "Good Morning",
-    hiBlen: isArabic ? "مرحبًا، بلين" : "Hi, Blen",
+    
+    hiBlen: isArabic ? `مرحبًا، ${userName}` : `Hi, ${userName}`,
     availableBalance: isArabic ? "الرصيد المتاح" : "Available Balance",
     secureWallet: isArabic ? "محفظة آمنة" : "Secure wallet",
     addCredit: isArabic ? "إضافة رصيد" : "Add credit",
@@ -25,8 +31,8 @@ export default function Home({ darkMode = false, isArabic = false }) {
     notCharging: isArabic ? "لا يتم الشحن حاليًا" : "Not charging",
     nextChargeText: isArabic
       ? "شحنتك القادمة على بعد مسحة واحدة."
-      : "Your next charge is just a scan away.",
-    scanToCharge: isArabic ? "امسح للشحن" : "Scan to charge",
+      : "Your next charge is just a tap away.",
+    scanToCharge: isArabic ? "امسح للشحن" : "Tap to charge",
     tapPhoneText: isArabic
       ? "ضع هاتفك على أي شاحن فولتو"
       : "Tap your phone on any Volto charger",
@@ -65,6 +71,9 @@ export default function Home({ darkMode = false, isArabic = false }) {
     },
   ];
 
+  // Get first letter of the dynamic name for the avatar fallback
+  const userInitial = userName.charAt(0).toUpperCase();
+
   return (
     <div
       dir={isArabic ? "rtl" : "ltr"}
@@ -96,6 +105,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
             </span>
           </div>
 
+          {/* Dynamically displays the first letter of whoever is logged in */}
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-base shadow-sm transition-colors ${
               darkMode
@@ -103,7 +113,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
                 : "bg-[#125833] text-white"
             }`}
           >
-            B
+            {userInitial}
           </div>
         </header>
 
@@ -364,6 +374,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
           }`}
         >
           <button
+            onClick={() => navigate("/home")}
             className={`flex flex-col items-center gap-1 ${
               darkMode ? "text-[#22c55e]" : "text-[#125833]"
             }`}
@@ -389,6 +400,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
           </button>
 
           <button
+            onClick={() => navigate("/profile")}
             className={`flex flex-col items-center gap-1 transition ${
               darkMode
                 ? "text-neutral-500 hover:text-neutral-300"

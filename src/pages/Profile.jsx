@@ -12,7 +12,8 @@ import {
   LogOut, 
   Check, 
   X, 
-  ShieldCheck 
+  ShieldCheck,
+  CreditCard 
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -33,6 +34,7 @@ export default function Profile() {
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Change password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -41,7 +43,14 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
 
-  // Load current user info on mount (adjust based on how you store user session)
+  // Wallet form state
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [walletSuccess, setWalletSuccess] = useState("");
+
+  // Load current user info on mount
   useEffect(() => {
     const loggedInUser = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
     if (loggedInUser) {
@@ -56,13 +65,12 @@ export default function Profile() {
           setSelectedVehicle(parsed.vehicle);
         }
       } catch (e) {
-        // Fallback if it's just stored as plain text email or mock
+        // Fallback if stored as plain text or mock
       }
     }
   }, []);
 
   const handleLogout = () => {
-    // Perform any auth cleanup/logout logic here (e.g., clear tokens)
     localStorage.removeItem("currentUser");
     sessionStorage.removeItem("currentUser");
     navigate("/signup"); 
@@ -84,11 +92,10 @@ export default function Profile() {
     }
 
     if (newPassword.length < 6) {
-      setPasswordError(isArabic ? "يجب أن تكونكلمة المرور 6 أحرف على الأقل" : "Password must be at least 6 characters long");
+      setPasswordError(isArabic ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل" : "Password must be at least 6 characters long");
       return;
     }
 
-    // Here you can integrate your actual backend/storage password update logic
     setPasswordSuccess(isArabic ? "تم تغيير كلمة المرور بنجاح!" : "Password changed successfully!");
     
     setTimeout(() => {
@@ -97,6 +104,16 @@ export default function Profile() {
       setNewPassword("");
       setConfirmPassword("");
       setPasswordSuccess("");
+    }, 1500);
+  };
+
+  const handleWalletSave = (e) => {
+    e.preventDefault();
+    setWalletSuccess(isArabic ? "تم حفظ بطاقة الدفع بنجاح!" : "Card saved successfully!");
+    
+    setTimeout(() => {
+      setShowWalletModal(false);
+      setWalletSuccess("");
     }, 1500);
   };
 
@@ -109,6 +126,8 @@ export default function Profile() {
     myVehicle: isArabic ? "مركبتي" : "My vehicle",
     language: isArabic ? "اللغة" : "Language",
     security: isArabic ? "الأمان" : "Security",
+    wallet: isArabic ? "المحفظة" : "Wallet",
+    walletSubtitle: isArabic ? "إدارة بطاقات الائتمان وطرق الدفع" : "Manage payment methods",
     changePassword: isArabic ? "تغيير كلمة المرور" : "Change password",
     lastChanged: isArabic ? "آخر تغيير قبل 3 أشهر" : "Last changed 3 months ago",
     appearance: isArabic ? "المظهر" : "Appearance",
@@ -124,6 +143,10 @@ export default function Profile() {
     confirmPassword: isArabic ? "تأكيد كلمة المرور الجديدة" : "Confirm New Password",
     saveChanges: isArabic ? "حفظ التغييرات" : "Save Changes",
     cancel: isArabic ? "إلغاء" : "Cancel",
+    cardHolder: isArabic ? "اسم حامل البطاقة" : "Cardholder Name",
+    cardNumber: isArabic ? "رقم البطاقة" : "Card Number",
+    expiryDate: isArabic ? "تاريخ الانتهاء" : "Expiry Date",
+    cvv: isArabic ? "رمز الأمان (CVV)" : "CVV",
   };
 
   const evVehicles = [
@@ -260,7 +283,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Preferences Section */}
+        {/* Preferences Section (Now includes Appearance) */}
         <div
           className={`rounded-3xl border shadow-sm overflow-hidden mb-6 transition-colors ${
             darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200/60"
@@ -354,66 +377,8 @@ export default function Profile() {
                 } ${darkMode ? "text-neutral-600" : "text-neutral-400"}`}
               />
             </button>
-          </div>
-        </div>
 
-        {/* Security Section */}
-        <div
-          className={`rounded-3xl border shadow-sm overflow-hidden mb-6 transition-colors ${
-            darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200/60"
-          }`}
-        >
-          <div
-            className={`px-5 py-3 text-[11px] font-bold tracking-wider uppercase border-b transition-colors ${
-              darkMode
-                ? "bg-neutral-950 text-[#4ade80] border-neutral-800"
-                : "bg-[#E8F2EC] text-[#125833] border-neutral-100"
-            }`}
-          >
-            {t.security}
-          </div>
-
-          <div className={`divide-y ${darkMode ? "divide-neutral-800" : "divide-neutral-100"}`}>
-            {/* Change Password */}
-            <button 
-              onClick={() => setShowPasswordModal(true)}
-              className="w-full p-4 flex items-center justify-between text-left hover:opacity-80 transition"
-            >
-              <div className="flex items-center gap-3.5">
-                <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                    darkMode
-                      ? "bg-emerald-950/80 text-[#4ade80]"
-                      : "bg-[#E8F2EC] text-[#125833]"
-                  }`}
-                >
-                  <Lock className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4
-                    className={`text-sm font-semibold ${
-                      darkMode ? "text-white" : "text-neutral-900"
-                    }`}
-                  >
-                    {t.changePassword}
-                  </h4>
-                  <p
-                    className={`text-xs ${
-                      darkMode ? "text-neutral-400" : "text-neutral-500"
-                    }`}
-                  >
-                    {t.lastChanged}
-                  </p>
-                </div>
-              </div>
-              <ChevronRight
-                className={`w-4 h-4 ${
-                  isArabic ? "rotate-180" : ""
-                } ${darkMode ? "text-neutral-600" : "text-neutral-400"}`}
-              />
-            </button>
-
-            {/* Appearance Toggle Item */}
+            {/* Appearance Toggle Item (Moved here) */}
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
                 <div
@@ -459,6 +424,103 @@ export default function Profile() {
                 />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Security Section (Now includes Wallet) */}
+        <div
+          className={`rounded-3xl border shadow-sm overflow-hidden mb-6 transition-colors ${
+            darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200/60"
+          }`}
+        >
+          <div
+            className={`px-5 py-3 text-[11px] font-bold tracking-wider uppercase border-b transition-colors ${
+              darkMode
+                ? "bg-neutral-950 text-[#4ade80] border-neutral-800"
+                : "bg-[#E8F2EC] text-[#125833] border-neutral-100"
+            }`}
+          >
+            {t.security}
+          </div>
+
+          <div className={`divide-y ${darkMode ? "divide-neutral-800" : "divide-neutral-100"}`}>
+            {/* Wallet Option */}
+            <button 
+              onClick={() => setShowWalletModal(true)}
+              className="w-full p-4 flex items-center justify-between text-left hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                    darkMode
+                      ? "bg-emerald-950/80 text-[#4ade80]"
+                      : "bg-[#E8F2EC] text-[#125833]"
+                  }`}
+                >
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4
+                    className={`text-sm font-semibold ${
+                      darkMode ? "text-white" : "text-neutral-900"
+                    }`}
+                  >
+                    {t.wallet}
+                  </h4>
+                  <p
+                    className={`text-xs ${
+                      darkMode ? "text-neutral-400" : "text-neutral-500"
+                    }`}
+                  >
+                    {t.walletSubtitle}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight
+                className={`w-4 h-4 ${
+                  isArabic ? "rotate-180" : ""
+                } ${darkMode ? "text-neutral-600" : "text-neutral-400"}`}
+              />
+            </button>
+
+            {/* Change Password */}
+            <button 
+              onClick={() => setShowPasswordModal(true)}
+              className="w-full p-4 flex items-center justify-between text-left hover:opacity-80 transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                    darkMode
+                      ? "bg-emerald-950/80 text-[#4ade80]"
+                      : "bg-[#E8F2EC] text-[#125833]"
+                  }`}
+                >
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4
+                    className={`text-sm font-semibold ${
+                      darkMode ? "text-white" : "text-neutral-900"
+                    }`}
+                  >
+                    {t.changePassword}
+                  </h4>
+                  <p
+                    className={`text-xs ${
+                      darkMode ? "text-neutral-400" : "text-neutral-500"
+                    }`}
+                  >
+                    {t.lastChanged}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight
+                className={`w-4 h-4 ${
+                  isArabic ? "rotate-180" : ""
+                } ${darkMode ? "text-neutral-600" : "text-neutral-400"}`}
+              />
+            </button>
           </div>
         </div>
 
@@ -590,6 +652,128 @@ export default function Profile() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WALLET / CREDIT CARD MODAL */}
+      {showWalletModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-colors ${
+              darkMode
+                ? "bg-neutral-900 border-neutral-800 text-white"
+                : "bg-white border-neutral-100 text-neutral-900"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">{t.wallet}</h3>
+              <button
+                onClick={() => {
+                  setShowWalletModal(false);
+                  setWalletSuccess("");
+                }}
+                className="p-1 rounded-full hover:bg-neutral-500/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleWalletSave} className="space-y-4">
+              {walletSuccess && (
+                <div className="p-3 text-xs rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  {walletSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 opacity-80">{t.cardHolder}</label>
+                <input
+                  type="text"
+                  required
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value)}
+                  className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode 
+                      ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                      : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                  }`}
+                  placeholder="Blen"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 opacity-80">{t.cardNumber}</label>
+                <input
+                  type="text"
+                  required
+                  maxLength="19"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode 
+                      ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                      : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                  }`}
+                  placeholder="4532 •••• •••• 3482"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 opacity-80">{t.expiryDate}</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength="5"
+                    value={cardExpiry}
+                    onChange={(e) => setCardExpiry(e.target.value)}
+                    className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                      darkMode 
+                        ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                        : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                    }`}
+                    placeholder="MM/YY"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 opacity-80">{t.cvv}</label>
+                  <input
+                    type="password"
+                    required
+                    maxLength="4"
+                    value={cardCvv}
+                    onChange={(e) => setCardCvv(e.target.value)}
+                    className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                      darkMode 
+                        ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                        : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                    }`}
+                    placeholder="123"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWalletModal(false)}
+                  className={`flex-1 py-3 rounded-xl border font-semibold text-sm transition ${
+                    darkMode ? "border-neutral-800 hover:bg-neutral-800" : "border-neutral-200 hover:bg-neutral-100"
+                  }`}
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm text-white transition ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] hover:opacity-90"
+                  }`}
+                >
+                  {t.saveChanges}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

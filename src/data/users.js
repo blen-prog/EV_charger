@@ -7,7 +7,8 @@ export const allowedUsers = [
     email: "blen@gmail.com",
     phoneNumber: "+251911234567",
     password: "password123",
-    vehicle: "Tesla Model 3"
+    vehicle: "Tesla Model 3",
+    role: "user"
   },
   {
     id: "USR-002",
@@ -15,15 +16,17 @@ export const allowedUsers = [
     email: "alex@gmail.com",
     phoneNumber: "+971501234567",
     password: "securepassword",
-    vehicle: "Nissan Leaf"
+    vehicle: "Nissan Leaf",
+    role: "user"
   },
   {
-    id: "USR-003",
+    id: "OWR-001",
     name: "Sarah Ahmed",
     email: "sarah@gmail.com",
     phoneNumber: "+971559876543",
     password: "voltopassword",
-    vehicle: "BMW i4"
+    charger: "CHG-001",
+    role: "owner"
   }
 ];
 
