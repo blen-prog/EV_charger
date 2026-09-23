@@ -196,170 +196,6 @@ export default function Home() {
           </h1>
         </div>
 
-        {/* LIVE TELEMETRY SECTION */}
-        <div className="space-y-3 pt-2">
-          {/* Telemetry Header */}
-          <div className="flex items-center justify-between">
-            <h2 className={`text-base font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
-              {t.liveTelemetry}
-            </h2>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>RFID</span>
-              <span className="font-bold">{t.rfidAuthorized}</span>
-            </div>
-          </div>
-
-          {/* 2x2 Telemetry Metric Cards */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Voltage */}
-            <div
-              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
-                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1.5">
-                <Zap className="w-3.5 h-3.5" />
-                <span>{t.voltage}</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight">{telemetry.voltage}</span>
-                <span className="text-xs text-neutral-400 font-medium">V</span>
-              </div>
-            </div>
-
-            {/* Current */}
-            <div
-              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
-                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1.5">
-                <Activity className="w-3.5 h-3.5" />
-                <span>{t.current}</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight">{telemetry.current}</span>
-                <span className="text-xs text-neutral-400 font-medium">A</span>
-              </div>
-            </div>
-
-            {/* Power */}
-            <div
-              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
-                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-                  <Gauge className="w-3.5 h-3.5" />
-                  <span>{t.power}</span>
-                </div>
-                <span className="text-[10px] font-semibold text-emerald-500">▲ 0.0%</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight">{telemetry.power}</span>
-                <span className="text-xs text-neutral-400 font-medium">kW</span>
-              </div>
-            </div>
-
-            {/* Energy */}
-            <div
-              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
-                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mb-1.5">
-                <BatteryCharging className="w-3.5 h-3.5" />
-                <span>{t.energy}</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight">{telemetry.energy}</span>
-                <span className="text-xs text-neutral-400 font-medium">kWh</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Power Factor Strip */}
-          <div
-            className={`rounded-2xl px-4 py-3 border flex items-center justify-between shadow-xs transition-colors ${
-              darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-            }`}
-          >
-            <span className="text-xs font-medium text-neutral-500">{t.powerFactor}</span>
-            <span className="text-sm font-bold tracking-tight">{telemetry.powerFactor}</span>
-          </div>
-
-          {/* Lower Charts Grid */}
-          <div className="grid grid-cols-5 gap-3">
-            {/* Live Trend Card */}
-            <div
-              className={`col-span-3 rounded-2xl p-4 border flex flex-col justify-between shadow-xs transition-colors ${
-                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-              }`}
-            >
-              <span className="text-[11px] font-medium text-neutral-500">{t.liveTrend}</span>
-              <div className="h-20 w-full flex items-center justify-center relative">
-                <svg className="w-full h-full overflow-visible" viewBox="0 0 200 65">
-                  <polyline
-                    fill="none"
-                    stroke="#22c55e"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    points={trendSvgPoints}
-                  />
-                  <circle
-                    cx="190"
-                    cy="35"
-                    r="4"
-                    fill="none"
-                    stroke="#f97316"
-                    strokeWidth="2.5"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Load Split Donut Card */}
-            <div
-              className={`col-span-2 rounded-2xl p-3 border flex flex-col items-center justify-between shadow-xs transition-colors ${
-                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
-              }`}
-            >
-              <span className="text-[11px] font-medium text-neutral-500 self-start">{t.loadSplit}</span>
-              
-              <div className="relative w-20 h-20 my-1 flex items-center justify-center">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 90 90">
-                  <circle
-                    cx="45"
-                    cy="45"
-                    r={radius}
-                    className="stroke-slate-200 dark:stroke-slate-700"
-                    strokeWidth="10"
-                    fill="none"
-                  />
-                  <circle
-                    cx="45"
-                    cy="45"
-                    r={radius}
-                    stroke="#16a34a"
-                    strokeWidth="10"
-                    fill="none"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-xs font-bold leading-tight">{telemetry.currentToCar}A</span>
-                  <span className="text-[9px] text-neutral-400">{t.toCar}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Available Balance Card */}
         <div
           className={`rounded-3xl p-6 shadow-sm relative overflow-hidden transition-colors ${
@@ -583,6 +419,170 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* LIVE TELEMETRY SECTION (Moved to Bottom) */}
+        <div className="space-y-3 pt-2">
+          {/* Telemetry Header */}
+          <div className="flex items-center justify-between">
+            <h2 className={`text-base font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
+              {t.liveTelemetry}
+            </h2>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>RFID</span>
+              <span className="font-bold">{t.rfidAuthorized}</span>
+            </div>
+          </div>
+
+          {/* 2x2 Telemetry Metric Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Voltage */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                <span>{t.voltage}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.voltage}</span>
+                <span className="text-xs text-neutral-400 font-medium">V</span>
+              </div>
+            </div>
+
+            {/* Current */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1.5">
+                <Activity className="w-3.5 h-3.5" />
+                <span>{t.current}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.current}</span>
+                <span className="text-xs text-neutral-400 font-medium">A</span>
+              </div>
+            </div>
+
+            {/* Power */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span>{t.power}</span>
+                </div>
+                <span className="text-[10px] font-semibold text-emerald-500">▲ 0.0%</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.power}</span>
+                <span className="text-xs text-neutral-400 font-medium">kW</span>
+              </div>
+            </div>
+
+            {/* Energy */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mb-1.5">
+                <BatteryCharging className="w-3.5 h-3.5" />
+                <span>{t.energy}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.energy}</span>
+                <span className="text-xs text-neutral-400 font-medium">kWh</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Power Factor Strip */}
+          <div
+            className={`rounded-2xl px-4 py-3 border flex items-center justify-between shadow-xs transition-colors ${
+              darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+            }`}
+          >
+            <span className="text-xs font-medium text-neutral-500">{t.powerFactor}</span>
+            <span className="text-sm font-bold tracking-tight">{telemetry.powerFactor}</span>
+          </div>
+
+          {/* Lower Charts Grid */}
+          <div className="grid grid-cols-5 gap-3">
+            {/* Live Trend Card */}
+            <div
+              className={`col-span-3 rounded-2xl p-4 border flex flex-col justify-between shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <span className="text-[11px] font-medium text-neutral-500">{t.liveTrend}</span>
+              <div className="h-20 w-full flex items-center justify-center relative">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 200 65">
+                  <polyline
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={trendSvgPoints}
+                  />
+                  <circle
+                    cx="190"
+                    cy="35"
+                    r="4"
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth="2.5"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            {/* Load Split Donut Card */}
+            <div
+              className={`col-span-2 rounded-2xl p-3 border flex flex-col items-center justify-between shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <span className="text-[11px] font-medium text-neutral-500 self-start">{t.loadSplit}</span>
+              
+              <div className="relative w-20 h-20 my-1 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 90 90">
+                  <circle
+                    cx="45"
+                    cy="45"
+                    r={radius}
+                    className="stroke-slate-200 dark:stroke-slate-700"
+                    strokeWidth="10"
+                    fill="none"
+                  />
+                  <circle
+                    cx="45"
+                    cy="45"
+                    r={radius}
+                    stroke="#16a34a"
+                    strokeWidth="10"
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xs font-bold leading-tight">{telemetry.currentToCar}A</span>
+                  <span className="text-[9px] text-neutral-400">{t.toCar}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
