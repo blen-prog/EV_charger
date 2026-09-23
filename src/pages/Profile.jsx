@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  Zap, 
-  History, 
   User, 
   Car, 
   Globe, 
@@ -283,7 +281,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Preferences Section (Now includes Appearance) */}
+        {/* Preferences Section */}
         <div
           className={`rounded-3xl border shadow-sm overflow-hidden mb-6 transition-colors ${
             darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200/60"
@@ -378,7 +376,7 @@ export default function Profile() {
               />
             </button>
 
-            {/* Appearance Toggle Item (Moved here) */}
+            {/* Appearance Toggle Item */}
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
                 <div
@@ -427,7 +425,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Security Section (Now includes Wallet) */}
+        {/* Security Section */}
         <div
           className={`rounded-3xl border shadow-sm overflow-hidden mb-6 transition-colors ${
             darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200/60"
@@ -882,48 +880,6 @@ export default function Profile() {
           </div>
         </div>
       )}
-
-      {/* Floating Bottom Navigation */}
-      <div className="fixed bottom-6 left-0 right-0 flex justify-center px-4">
-        <nav
-          className={`rounded-full px-8 py-3 shadow-lg border flex items-center gap-10 transition-colors ${
-            darkMode
-              ? "bg-neutral-900 border-neutral-800"
-              : "bg-white border-neutral-200/60"
-          }`}
-        >
-          <button
-            className={`flex flex-col items-center gap-1 transition ${
-              darkMode ? "text-neutral-500 hover:text-neutral-300" : "text-neutral-400 hover:text-neutral-600"
-            }`}
-          >
-            <Zap className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t.home}</span>
-          </button>
-
-          <button
-            className={`flex flex-col items-center gap-1 transition ${
-              darkMode ? "text-neutral-500 hover:text-neutral-300" : "text-neutral-400 hover:text-neutral-600"
-            }`}
-          >
-            <History className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t.transactions}</span>
-          </button>
-
-          <button
-            className={`flex flex-col items-center gap-1 ${
-              darkMode ? "text-[#22c55e]" : "text-[#125833]"
-            }`}
-          >
-            <User
-              className={`w-5 h-5 stroke-[2.5] ${
-                darkMode ? "text-[#22c55e]" : "text-[#125833]"
-              }`}
-            />
-            <span className="text-[11px] font-bold">{t.profile}</span>
-          </button>
-        </nav>
-      </div>
     </div>
   );
 }

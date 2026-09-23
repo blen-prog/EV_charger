@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { Zap, History, User, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
-export default function Transactions({ darkMode = false, isArabic = false }) {
+export default function Transactions() {
+  const { darkMode, isArabic } = useTheme();
+
   const [filter, setFilter] = useState("all"); // 'all', '7days', '30days', 'custom'
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -128,7 +131,7 @@ export default function Transactions({ darkMode = false, isArabic = false }) {
       {/* Matches the max-w-md container width */}
       <div className="w-full max-w-md">
         
-        {/* Top Header - Cleaned without toggles */}
+        {/* Top Header */}
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
             <div
@@ -436,52 +439,6 @@ export default function Transactions({ darkMode = false, isArabic = false }) {
           )}
         </div>
 
-      </div>
-
-      {/* Floating Bottom Navigation */}
-      <div className="fixed bottom-6 left-0 right-0 flex justify-center px-4">
-        <nav
-          className={`rounded-full px-8 py-3 shadow-lg border flex items-center gap-10 transition-colors ${
-            darkMode
-              ? "bg-neutral-900 border-neutral-800"
-              : "bg-white border-neutral-200/60"
-          }`}
-        >
-          <button
-            className={`flex flex-col items-center gap-1 transition ${
-              darkMode
-                ? "text-neutral-500 hover:text-neutral-300"
-                : "text-neutral-400 hover:text-neutral-600"
-            }`}
-          >
-            <Zap className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t.home}</span>
-          </button>
-
-          <button
-            className={`flex flex-col items-center gap-1 ${
-              darkMode ? "text-[#22c55e]" : "text-[#125833]"
-            }`}
-          >
-            <History
-              className={`w-5 h-5 stroke-[2.5] ${
-                darkMode ? "text-[#22c55e]" : "text-[#125833]"
-              }`}
-            />
-            <span className="text-[11px] font-bold">{t.transactions}</span>
-          </button>
-
-          <button
-            className={`flex flex-col items-center gap-1 transition ${
-              darkMode
-                ? "text-neutral-500 hover:text-neutral-300"
-                : "text-neutral-400 hover:text-neutral-600"
-            }`}
-          >
-            <User className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t.profile}</span>
-          </button>
-        </nav>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
-// src/pages/Home.jsx (or your component file path)
+// src/pages/Home.jsx
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ShieldCheck, 
@@ -10,19 +10,63 @@ import {
   ChevronRight, 
   History, 
   User, 
-  Mail 
+  Mail,
+  Activity,
+  Gauge,
+  CreditCard,
+  BatteryCharging
 } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
-export default function Home({ darkMode = false, isArabic = false }) {
+export default function Home() {
   const navigate = useNavigate();
+  const { darkMode, isArabic } = useTheme();
 
   // Retrieve current logged-in user dynamically
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
   const userName = currentUser?.name || (isArabic ? "بلين" : "Blen");
 
+  // Simulated live telemetry state matching the screenshot
+  const [telemetry, setTelemetry] = useState({
+    voltage: 230.4,
+    current: 18.2,
+    power: 4.19,
+    energy: 1.02,
+    powerFactor: 0.97,
+    currentToCar: 62,
+    maxCurrent: 80,
+    rfidStatus: "Authorized"
+  });
+
+  // History buffer for the live trend graph
+  const [trendPoints, setTrendPoints] = useState([3.8, 3.9, 4.0, 4.1, 4.15, 4.19]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTelemetry((prev) => {
+        const deltaCurrent = (Math.random() - 0.5) * 0.4;
+        const current = +(prev.current + deltaCurrent).toFixed(1);
+        const voltage = +(230 + (Math.random() - 0.5) * 1.5).toFixed(1);
+        const power = +((voltage * current) / 1000).toFixed(2);
+        const energy = +(prev.energy + power / 3600).toFixed(2);
+
+        setTrendPoints((pts) => [...pts.slice(-14), power]);
+
+        return {
+          ...prev,
+          voltage,
+          current,
+          power,
+          energy
+        };
+      });
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Localization dictionary
   const t = {
-    
     hiBlen: isArabic ? `مرحبًا، ${userName}` : `Hi, ${userName}`,
     availableBalance: isArabic ? "الرصيد المتاح" : "Available Balance",
     secureWallet: isArabic ? "محفظة آمنة" : "Secure wallet",
@@ -45,6 +89,18 @@ export default function Home({ darkMode = false, isArabic = false }) {
     yesterday: isArabic ? "أمس، 6:18 مساءً" : "Yesterday, 6:18 PM",
     aed: isArabic ? "د.إ" : "AED",
     kwh: isArabic ? "كيلوواط/ساعة" : "kWh",
+
+    // Telemetry translations
+    liveTelemetry: isArabic ? "القياس الحي عن بُعد" : "Live telemetry",
+    rfidAuthorized: isArabic ? "بطاقة RFID مصرح بها" : "RFID Authorized",
+    voltage: isArabic ? "الجهد الكهربائي" : "Voltage",
+    current: isArabic ? "التيار" : "Current",
+    power: isArabic ? "القدرة" : "Power",
+    energy: isArabic ? "الطاقة" : "Energy",
+    powerFactor: isArabic ? "معامل القدرة" : "Power Factor",
+    liveTrend: isArabic ? "القدرة (كيلوواط) — الاتجاه المباشر" : "Power (kW) — live trend",
+    loadSplit: isArabic ? "توزيع الحمل" : "Load split",
+    toCar: isArabic ? "إلى السيارة" : "to car",
   };
 
   const recentActivities = [
@@ -71,21 +127,34 @@ export default function Home({ darkMode = false, isArabic = false }) {
     },
   ];
 
-  // Get first letter of the dynamic name for the avatar fallback
   const userInitial = userName.charAt(0).toUpperCase();
+
+  // Load split donut calculations
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const splitPct = telemetry.currentToCar / telemetry.maxCurrent;
+  const strokeDashoffset = circumference - splitPct * circumference;
+
+  // Trendline SVG path generator
+  const trendSvgPoints = trendPoints
+    .map((val, idx) => {
+      const x = (idx / (trendPoints.length - 1)) * 180 + 10;
+      const y = 55 - ((val - 3.5) / 1.5) * 45;
+      return `${x},${Math.max(10, Math.min(55, y))}`;
+    })
+    .join(" ");
 
   return (
     <div
       dir={isArabic ? "rtl" : "ltr"}
-      className={`min-h-screen flex justify-center px-6 py-10 pb-28 font-sans transition-colors duration-300 ${
+      className={`min-h-screen flex justify-center px-4 sm:px-6 py-10 pb-28 font-sans transition-colors duration-300 ${
         darkMode ? "bg-black text-white" : "bg-slate-100 text-slate-900"
       }`}
     >
-      {/* Matches the max-w-md width from Signup */}
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-4">
         
         {/* Top Header */}
-        <header className="flex items-center justify-between mb-8">
+        <header className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center text-xl shadow-sm transition-colors ${
@@ -105,7 +174,6 @@ export default function Home({ darkMode = false, isArabic = false }) {
             </span>
           </div>
 
-          {/* Dynamically displays the first letter of whoever is logged in */}
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-base shadow-sm transition-colors ${
               darkMode
@@ -118,16 +186,9 @@ export default function Home({ darkMode = false, isArabic = false }) {
         </header>
 
         {/* Greeting Section */}
-        <div className="mb-6">
-          <p
-            className={`text-xs font-semibold tracking-[0.25em] uppercase mb-1 ${
-              darkMode ? "text-[#4ade80]" : "text-[#125833]"
-            }`}
-          >
-            {t.goodMorning}
-          </p>
+        <div className="mb-2">
           <h1
-            className={`text-4xl font-bold tracking-tight ${
+            className={`text-3xl font-bold tracking-tight ${
               darkMode ? "text-white" : "text-slate-900"
             }`}
           >
@@ -135,9 +196,173 @@ export default function Home({ darkMode = false, isArabic = false }) {
           </h1>
         </div>
 
+        {/* LIVE TELEMETRY SECTION */}
+        <div className="space-y-3 pt-2">
+          {/* Telemetry Header */}
+          <div className="flex items-center justify-between">
+            <h2 className={`text-base font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
+              {t.liveTelemetry}
+            </h2>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>RFID</span>
+              <span className="font-bold">{t.rfidAuthorized}</span>
+            </div>
+          </div>
+
+          {/* 2x2 Telemetry Metric Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Voltage */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                <span>{t.voltage}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.voltage}</span>
+                <span className="text-xs text-neutral-400 font-medium">V</span>
+              </div>
+            </div>
+
+            {/* Current */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1.5">
+                <Activity className="w-3.5 h-3.5" />
+                <span>{t.current}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.current}</span>
+                <span className="text-xs text-neutral-400 font-medium">A</span>
+              </div>
+            </div>
+
+            {/* Power */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span>{t.power}</span>
+                </div>
+                <span className="text-[10px] font-semibold text-emerald-500">▲ 0.0%</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.power}</span>
+                <span className="text-xs text-neutral-400 font-medium">kW</span>
+              </div>
+            </div>
+
+            {/* Energy */}
+            <div
+              className={`rounded-2xl p-4 border shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mb-1.5">
+                <BatteryCharging className="w-3.5 h-3.5" />
+                <span>{t.energy}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{telemetry.energy}</span>
+                <span className="text-xs text-neutral-400 font-medium">kWh</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Power Factor Strip */}
+          <div
+            className={`rounded-2xl px-4 py-3 border flex items-center justify-between shadow-xs transition-colors ${
+              darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+            }`}
+          >
+            <span className="text-xs font-medium text-neutral-500">{t.powerFactor}</span>
+            <span className="text-sm font-bold tracking-tight">{telemetry.powerFactor}</span>
+          </div>
+
+          {/* Lower Charts Grid */}
+          <div className="grid grid-cols-5 gap-3">
+            {/* Live Trend Card */}
+            <div
+              className={`col-span-3 rounded-2xl p-4 border flex flex-col justify-between shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <span className="text-[11px] font-medium text-neutral-500">{t.liveTrend}</span>
+              <div className="h-20 w-full flex items-center justify-center relative">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 200 65">
+                  <polyline
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={trendSvgPoints}
+                  />
+                  <circle
+                    cx="190"
+                    cy="35"
+                    r="4"
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth="2.5"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            {/* Load Split Donut Card */}
+            <div
+              className={`col-span-2 rounded-2xl p-3 border flex flex-col items-center justify-between shadow-xs transition-colors ${
+                darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
+              }`}
+            >
+              <span className="text-[11px] font-medium text-neutral-500 self-start">{t.loadSplit}</span>
+              
+              <div className="relative w-20 h-20 my-1 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 90 90">
+                  <circle
+                    cx="45"
+                    cy="45"
+                    r={radius}
+                    className="stroke-slate-200 dark:stroke-slate-700"
+                    strokeWidth="10"
+                    fill="none"
+                  />
+                  <circle
+                    cx="45"
+                    cy="45"
+                    r={radius}
+                    stroke="#16a34a"
+                    strokeWidth="10"
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xs font-bold leading-tight">{telemetry.currentToCar}A</span>
+                  <span className="text-[9px] text-neutral-400">{t.toCar}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Available Balance Card */}
         <div
-          className={`rounded-3xl p-6 mb-4 shadow-sm relative overflow-hidden transition-colors ${
+          className={`rounded-3xl p-6 shadow-sm relative overflow-hidden transition-colors ${
             darkMode
               ? "bg-neutral-900 border border-neutral-800 text-white"
               : "bg-[#123E28] text-white"
@@ -201,7 +426,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
 
         {/* Charging Status Card */}
         <div
-          className={`rounded-3xl p-5 mb-4 border shadow-sm flex items-start gap-4 relative transition-colors ${
+          className={`rounded-3xl p-5 border shadow-sm flex items-start gap-4 relative transition-colors ${
             darkMode
               ? "bg-neutral-900 border-neutral-800"
               : "bg-white border-slate-200/60"
@@ -250,7 +475,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
 
         {/* Scan to Charge Banner */}
         <div
-          className={`rounded-3xl p-4 mb-8 shadow-sm flex items-center justify-between cursor-pointer transition ${
+          className={`rounded-3xl p-4 shadow-sm flex items-center justify-between cursor-pointer transition ${
             darkMode
               ? "bg-[#22c55e] text-black hover:bg-emerald-400"
               : "bg-[#125833] text-white hover:bg-[#0d4226]"
@@ -285,7 +510,7 @@ export default function Home({ darkMode = false, isArabic = false }) {
         </div>
 
         {/* Recent Activity Section */}
-        <div className="mb-4">
+        <div>
           <div className="flex items-center justify-between mb-4">
             <h2
               className={`text-lg font-bold ${
@@ -304,7 +529,6 @@ export default function Home({ darkMode = false, isArabic = false }) {
             </button>
           </div>
 
-          {/* Activity List Container */}
           <div
             className={`rounded-3xl border overflow-hidden shadow-sm transition-colors ${
               darkMode
@@ -362,55 +586,6 @@ export default function Home({ darkMode = false, isArabic = false }) {
           </div>
         </div>
 
-      </div>
-
-      {/* Floating Bottom Navigation */}
-      <div className="fixed bottom-6 left-0 right-0 flex justify-center px-4">
-        <nav
-          className={`rounded-full px-8 py-3 shadow-lg border flex items-center gap-10 transition-colors ${
-            darkMode
-              ? "bg-neutral-900 border-neutral-800"
-              : "bg-white border-slate-200/60"
-          }`}
-        >
-          <button
-            onClick={() => navigate("/home")}
-            className={`flex flex-col items-center gap-1 ${
-              darkMode ? "text-[#22c55e]" : "text-[#125833]"
-            }`}
-          >
-            <Zap
-              className={`w-5 h-5 ${
-                darkMode ? "fill-[#22c55e]" : "fill-[#125833]"
-              }`}
-            />
-            <span className="text-[11px] font-bold">{t.home}</span>
-          </button>
-
-          <button
-            onClick={() => navigate("/transactions")}
-            className={`flex flex-col items-center gap-1 transition ${
-              darkMode
-                ? "text-neutral-500 hover:text-neutral-300"
-                : "text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            <History className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t.transactions}</span>
-          </button>
-
-          <button
-            onClick={() => navigate("/profile")}
-            className={`flex flex-col items-center gap-1 transition ${
-              darkMode
-                ? "text-neutral-500 hover:text-neutral-300"
-                : "text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            <User className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t.profile}</span>
-          </button>
-        </nav>
       </div>
     </div>
   );
