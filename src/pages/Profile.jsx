@@ -11,21 +11,24 @@ import {
   Check, 
   X, 
   ShieldCheck,
-  CreditCard 
+  CreditCard,
+  Radio
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
+import { signOutUser } from "../services/authService";
 
 export default function Profile() {
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode, isArabic, toggleArabic } = useTheme();
 
-  const [selectedVehicle, setSelectedVehicle] = useState("Tesla Model 3");
+  const [selectedVehicle, setSelectedVehicle] = useState("Electric Vehicle");
 
   // Logged-in user state
   const [currentUser, setCurrentUser] = useState({
-    name: "Blen",
-    email: "blen@example.com",
-    phoneNumber: "+251911234567"
+    name: "User",
+    email: "",
+    phoneNumber: "",
+    rfidUid: "A3:5C:89:1F"
   });
 
   // Modals state
@@ -50,25 +53,50 @@ export default function Profile() {
 
   // Load current user info on mount
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
-    if (loggedInUser) {
+    const rawUserData = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
+    if (rawUserData) {
       try {
-        const parsed = JSON.parse(loggedInUser);
-        setCurrentUser({
-          name: parsed.name || "Blen",
-          email: parsed.email || "blen@example.com",
-          phoneNumber: parsed.phoneNumber || "+251911234567"
-        });
-        if (parsed.vehicle) {
-          setSelectedVehicle(parsed.vehicle);
-        }
-      } catch (e) {
-        // Fallback if stored as plain text or mock
+        const parsed = JSON.parse(rawUserData);
+
+        // Support both Supabase user shape and simple local schema
+        const name = 
+          parsed.user_metadata?.full_name || 
+          parsed.name || 
+          parsed.email?.split("@")[0] || 
+          "User";
+
+        const email = parsed.email || "";
+
+        const phoneNumber = 
+          parsed.user_metadata?.phone || 
+          parsed.user_metadata?.phone_number || 
+          parsed.phoneNumber || 
+          "";
+
+        const vehicle = 
+          parsed.user_metadata?.vehicle || 
+          parsed.vehicle || 
+          "Electric Vehicle";
+
+        const rfidUid = 
+          parsed.user_metadata?.rfid_uid || 
+          parsed.rfidUid || 
+          "A3:5C:89:1F";
+
+        setCurrentUser({ name, email, phoneNumber, rfidUid });
+        setSelectedVehicle(vehicle);
+      } catch {
+        // Leave defaults if JSON parsing fails
       }
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+    } catch {
+      // Proceed with local cleanup regardless of network status
+    }
     localStorage.removeItem("currentUser");
     sessionStorage.removeItem("currentUser");
     navigate("/signup"); 
@@ -120,6 +148,12 @@ export default function Profile() {
     account: isArabic ? "الحساب" : "Account",
     profile: isArabic ? "الملف الشخصي" : "Profile",
     verified: isArabic ? "حساب موثق" : "Verified account",
+    virtualRfid: isArabic ? "مفتاح الشحن الرقمي" : "Virtual RFID Key",
+    rfidSubtitle: isArabic ? "معرف بطاقة المحطة" : "Station Pass UID",
+    rfidActive: isArabic ? "نشط" : "Active",
+    rfidDescription: isArabic 
+      ? "استخدم هذا المعرف في محطات الشحن أو قم بربط بطاقة فعلية لاحقاً." 
+      : "Tap or enter this digital UID at Volto charging stations.",
     preferences: isArabic ? "التفضيلات" : "Preferences",
     myVehicle: isArabic ? "مركبتي" : "My vehicle",
     language: isArabic ? "اللغة" : "Language",
@@ -132,8 +166,6 @@ export default function Profile() {
     darkMode: isArabic ? "الوضع الداكن" : "Dark mode",
     lightMode: isArabic ? "الوضع الفاتح" : "Light mode",
     logOut: isArabic ? "تسجيل الخروج" : "Log out",
-    home: isArabic ? "الرئيسية" : "Home",
-    transactions: isArabic ? "المعاملات" : "Transactions",
     selectVehicle: isArabic ? "اختر المركبة الكهربائية" : "Select EV Vehicle",
     selectLanguage: isArabic ? "اختر اللغة" : "Select Language",
     currentPassword: isArabic ? "كلمة المرور الحالية" : "Current Password",
@@ -162,6 +194,8 @@ export default function Profile() {
     { name: "English", native: "English", code: "en" },
     { name: "Arabic", native: "العربية", code: "ar" },
   ];
+
+  const userInitial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U";
 
   return (
     <div
@@ -234,18 +268,16 @@ export default function Profile() {
 
         {/* User Badge Card */}
         <div
-          className={`rounded-3xl p-5 mb-6 border shadow-sm flex items-center gap-4 transition-colors ${
+          className={`rounded-3xl p-5 mb-4 border shadow-sm flex items-center gap-4 transition-colors ${
             darkMode
               ? "bg-neutral-900 border-neutral-800"
               : "bg-white border-neutral-200/60"
           }`}
         >
           <div
-            className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl flex-shrink-0 ${
-              darkMode ? "bg-[#125833] text-white" : "bg-[#125833] text-white"
-            }`}
+            className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl flex-shrink-0 bg-[#125833] text-white"
           >
-            {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "B"}
+            {userInitial}
           </div>
 
           <div className="overflow-hidden">
@@ -263,13 +295,15 @@ export default function Profile() {
             >
               {currentUser.email}
             </p>
-            <p
-              className={`text-xs mb-1.5 truncate ${
-                darkMode ? "text-neutral-400" : "text-neutral-500"
-              }`}
-            >
-              {currentUser.phoneNumber}
-            </p>
+            {currentUser.phoneNumber && (
+              <p
+                className={`text-xs mb-1.5 truncate ${
+                  darkMode ? "text-neutral-400" : "text-neutral-500"
+                }`}
+              >
+                {currentUser.phoneNumber}
+              </p>
+            )}
             <div
               className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
                 darkMode ? "text-[#4ade80]" : "text-[#125833]"
@@ -279,6 +313,47 @@ export default function Profile() {
               <span>{t.verified}</span>
             </div>
           </div>
+        </div>
+
+        {/* Virtual RFID Key Card */}
+        <div
+          className={`rounded-3xl p-5 mb-6 border shadow-sm transition-colors ${
+            darkMode
+              ? "bg-neutral-900 border-neutral-800"
+              : "bg-[#E8F2EC] border-emerald-100"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Radio
+                className={`w-4 h-4 ${
+                  darkMode ? "text-[#4ade80]" : "text-[#125833]"
+                }`}
+              />
+              <span
+                className={`text-xs font-bold uppercase tracking-wider ${
+                  darkMode ? "text-[#4ade80]" : "text-[#125833]"
+                }`}
+              >
+                {t.virtualRfid}
+              </span>
+            </div>
+            <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+              {t.rfidActive}
+            </span>
+          </div>
+
+          <div
+            className={`font-mono text-base font-bold tracking-widest px-3 py-2 rounded-xl mb-2 ${
+              darkMode ? "bg-black/50 text-white" : "bg-white text-neutral-800"
+            }`}
+          >
+            {currentUser.rfidUid}
+          </div>
+
+          <p className="text-[11px] text-neutral-500 leading-relaxed">
+            {t.rfidDescription}
+          </p>
         </div>
 
         {/* Preferences Section */}
@@ -696,7 +771,7 @@ export default function Profile() {
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
                       : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
                   }`}
-                  placeholder="Blen"
+                  placeholder={currentUser.name || "Cardholder Name"}
                 />
               </div>
 

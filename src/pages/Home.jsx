@@ -1,5 +1,3 @@
-// src/pages/Home.jsx
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -7,10 +5,6 @@ import {
   Plus, 
   Zap, 
   Scan, 
-  ChevronRight, 
-  History, 
-  User, 
-  Mail,
   Activity,
   Gauge,
   CreditCard,
@@ -22,11 +16,12 @@ export default function Home() {
   const navigate = useNavigate();
   const { darkMode, isArabic } = useTheme();
 
-  // Retrieve current logged-in user dynamically
+  // Retrieve current logged-in user dynamically (supporting Supabase metadata structure)
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-  const userName = currentUser?.name || (isArabic ? "بلين" : "Blen");
+  const rawName = currentUser?.user_metadata?.full_name || currentUser?.name || currentUser?.email?.split("@")[0];
+  const userName = rawName || (isArabic ? "المستخدم" : "User");
 
-  // Simulated live telemetry state matching the screenshot
+  // Simulated live telemetry state
   const [telemetry, setTelemetry] = useState({
     voltage: 230.4,
     current: 18.2,
@@ -67,7 +62,7 @@ export default function Home() {
 
   // Localization dictionary
   const t = {
-    hiBlen: isArabic ? `مرحبًا، ${userName}` : `Hi, ${userName}`,
+    greeting: isArabic ? `مرحبًا، ${userName}` : `Hi, ${userName}`,
     availableBalance: isArabic ? "الرصيد المتاح" : "Available Balance",
     secureWallet: isArabic ? "محفظة آمنة" : "Secure wallet",
     addCredit: isArabic ? "إضافة رصيد" : "Add credit",
@@ -82,9 +77,6 @@ export default function Home() {
       : "Tap your phone on any Volto charger",
     recentActivity: isArabic ? "النشاط الحديث" : "Recent activity",
     viewAll: isArabic ? "عرض الكل" : "View all",
-    home: isArabic ? "الرئيسية" : "Home",
-    transactions: isArabic ? "المعاملات" : "Transactions",
-    profile: isArabic ? "الملف الشخصي" : "Profile",
     today: isArabic ? "اليوم، 10:42 صباحًا" : "Today, 10:42 AM",
     yesterday: isArabic ? "أمس، 6:18 مساءً" : "Yesterday, 6:18 PM",
     aed: isArabic ? "د.إ" : "AED",
@@ -192,7 +184,7 @@ export default function Home() {
               darkMode ? "text-white" : "text-slate-900"
             }`}
           >
-            {t.hiBlen}
+            {t.greeting}
           </h1>
         </div>
 
@@ -212,15 +204,6 @@ export default function Home() {
             >
               {t.availableBalance}
             </span>
-            <button
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition ${
-                darkMode
-                  ? "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
-                  : "bg-[#1D4E35] text-emerald-100 hover:bg-[#256143]"
-              }`}
-            >
-              <Mail className="w-4 h-4" />
-            </button>
           </div>
 
           <div className="flex items-baseline mb-6">
@@ -338,11 +321,6 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <ChevronRight
-            className={`w-5 h-5 ${
-              isArabic ? "rotate-180" : ""
-            } ${darkMode ? "text-black" : "text-emerald-100"}`}
-          />
         </div>
 
         {/* Recent Activity Section */}
@@ -422,9 +400,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* LIVE TELEMETRY SECTION (Moved to Bottom) */}
+        {/* Live Telemetry Section */}
         <div className="space-y-3 pt-2">
-          {/* Telemetry Header */}
           <div className="flex items-center justify-between">
             <h2 className={`text-base font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
               {t.liveTelemetry}
@@ -438,7 +415,6 @@ export default function Home() {
 
           {/* 2x2 Telemetry Metric Cards */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Voltage */}
             <div
               className={`rounded-2xl p-4 border shadow-xs transition-colors ${
                 darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
@@ -454,7 +430,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Current */}
             <div
               className={`rounded-2xl p-4 border shadow-xs transition-colors ${
                 darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
@@ -470,7 +445,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Power */}
             <div
               className={`rounded-2xl p-4 border shadow-xs transition-colors ${
                 darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
@@ -489,7 +463,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Energy */}
             <div
               className={`rounded-2xl p-4 border shadow-xs transition-colors ${
                 darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
@@ -518,7 +491,6 @@ export default function Home() {
 
           {/* Lower Charts Grid */}
           <div className="grid grid-cols-5 gap-3">
-            {/* Live Trend Card */}
             <div
               className={`col-span-3 rounded-2xl p-4 border flex flex-col justify-between shadow-xs transition-colors ${
                 darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"
@@ -547,7 +519,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Load Split Donut Card */}
             <div
               className={`col-span-2 rounded-2xl p-3 border flex flex-col items-center justify-between shadow-xs transition-colors ${
                 darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200/80"

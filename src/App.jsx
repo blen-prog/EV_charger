@@ -7,6 +7,15 @@ import Signup from "./pages/Signup";
 import Navigation from "./components/layout/Navigation";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 
+// Guard component that verifies user authentication
+function ProtectedRoute({ children }) {
+  const user = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
+  if (!user) {
+    return <Navigate to="/signup" replace />;
+  }
+  return children;
+}
+
 function MainApp() {
   const { darkMode, isArabic } = useTheme();
   const location = useLocation();
@@ -17,10 +26,38 @@ function MainApp() {
   return (
     <div className="relative min-h-screen">
       <Routes>
-        <Route path="/" element={<Home darkMode={darkMode} isArabic={isArabic} />} />
-        <Route path="/home" element={<Home darkMode={darkMode} isArabic={isArabic} />} />
-        <Route path="/transactions" element={<Transactions darkMode={darkMode} isArabic={isArabic} />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Home darkMode={darkMode} isArabic={isArabic} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Home darkMode={darkMode} isArabic={isArabic} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <Transactions darkMode={darkMode} isArabic={isArabic} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/signup" element={<Signup />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
