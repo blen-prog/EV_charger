@@ -12,10 +12,11 @@ import {
   X, 
   ShieldCheck,
   CreditCard,
-  Radio
+  Radio,
+  AlertTriangle
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
-import { signOutUser } from "../services/authService";
+import { signOutUser, reauthenticateAndDelete } from "../services/authService";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export default function Profile() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Change password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -51,6 +53,12 @@ export default function Profile() {
   const [cardCvv, setCardCvv] = useState("");
   const [walletSuccess, setWalletSuccess] = useState("");
 
+  // Delete account state
+  const [deleteStep, setDeleteStep] = useState(1); // 1 = Confirm, 2 = Password
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Load current user info on mount
   useEffect(() => {
     const rawUserData = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
@@ -58,7 +66,6 @@ export default function Profile() {
       try {
         const parsed = JSON.parse(rawUserData);
 
-        // Support both Supabase user shape and simple local schema
         const name = 
           parsed.user_metadata?.full_name || 
           parsed.name || 
@@ -143,7 +150,28 @@ export default function Profile() {
     }, 1500);
   };
 
-  // Translations dictionary for English and Arabic
+  const handleDeleteSubmit = async (e) => {
+    e.preventDefault();
+    if (!deletePassword.trim()) {
+      setDeleteError(isArabic ? "يرجى إدخال كلمة المرور" : "Please enter your password.");
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError("");
+
+    try {
+      await reauthenticateAndDelete(deletePassword);
+      setShowDeleteModal(false);
+      navigate("/signup");
+    } catch (err) {
+      setDeleteError(err.message || (isArabic ? "فشل حذف الحساب" : "Failed to delete account."));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Translations dictionary
   const t = {
     account: isArabic ? "الحساب" : "Account",
     profile: isArabic ? "الملف الشخصي" : "Profile",
@@ -166,6 +194,7 @@ export default function Profile() {
     darkMode: isArabic ? "الوضع الداكن" : "Dark mode",
     lightMode: isArabic ? "الوضع الفاتح" : "Light mode",
     logOut: isArabic ? "تسجيل الخروج" : "Log out",
+    deleteAccount: isArabic ? "حذف الحساب" : "Delete account",
     selectVehicle: isArabic ? "اختر المركبة الكهربائية" : "Select EV Vehicle",
     selectLanguage: isArabic ? "اختر اللغة" : "Select Language",
     currentPassword: isArabic ? "كلمة المرور الحالية" : "Current Password",
@@ -177,6 +206,15 @@ export default function Profile() {
     cardNumber: isArabic ? "رقم البطاقة" : "Card Number",
     expiryDate: isArabic ? "تاريخ الانتهاء" : "Expiry Date",
     cvv: isArabic ? "رمز الأمان (CVV)" : "CVV",
+    deleteConfirmTitle: isArabic ? "حذف الحساب نهائياً" : "Delete Account",
+    deleteWarningText: isArabic 
+      ? "هل أنت متأكد أنك تريد حذف حسابك؟ سيتم إزالة جميع سجلات الشحن والبيانات والمفتاح الرقمي نهائياً." 
+      : "Are you sure you want to delete your account? All your charging history and virtual RFID key will be permanently removed.",
+    noKeepIt: isArabic ? "لا، الاحتفاظ بالحساب" : "No, keep it",
+    yesContinue: isArabic ? "نعم، متابعة" : "Yes, continue",
+    deletePasswordPrompt: isArabic ? "لأمانك، يرجى إدخال كلمة المرور للتأكيد." : "For your security, please enter your password to confirm permanent deletion.",
+    confirmDelete: isArabic ? "تأكيد الحذف" : "Confirm Delete",
+    deleting: isArabic ? "جاري الحذف..." : "Deleting...",
   };
 
   const evVehicles = [
@@ -597,16 +635,33 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Log Out Button */}
-        <button
-          onClick={handleLogout}
-          className={`w-full py-4 rounded-2xl border font-semibold flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-500/10 transition ${
-            darkMode ? "border-neutral-800 bg-neutral-900" : "border-rose-200/60 bg-white"
-          }`}
-        >
-          <LogOut className="w-4 h-4" />
-          <span>{t.logOut}</span>
-        </button>
+        {/* Action Buttons: Log Out & Delete Account */}
+        <div className="space-y-3">
+          <button
+            onClick={handleLogout}
+            className={`w-full py-4 rounded-2xl border font-semibold flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-500/10 transition ${
+              darkMode ? "border-neutral-800 bg-neutral-900" : "border-rose-200/60 bg-white"
+            }`}
+          >
+            <LogOut className="w-4 h-4" />
+            <span>{t.logOut}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setDeleteStep(1);
+              setDeletePassword("");
+              setDeleteError("");
+              setShowDeleteModal(true);
+            }}
+            className={`w-full py-3.5 rounded-2xl border font-semibold flex items-center justify-center gap-2 text-red-500 hover:bg-red-500/10 transition text-sm ${
+              darkMode ? "border-neutral-800/80 bg-neutral-900/50" : "border-red-200/40 bg-white"
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span>{t.deleteAccount}</span>
+          </button>
+        </div>
 
       </div>
 
@@ -952,6 +1007,118 @@ export default function Profile() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ACCOUNT TWO-STEP MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-colors ${
+              darkMode
+                ? "bg-neutral-900 border-neutral-800 text-white"
+                : "bg-white border-neutral-100 text-neutral-900"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2 text-red-500">
+                <AlertTriangle className="w-5 h-5" />
+                <h3 className="text-base font-bold">{t.deleteConfirmTitle}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1 rounded-full hover:bg-neutral-500/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* STEP 1: Confirmation Warning */}
+            {deleteStep === 1 && (
+              <div className="space-y-4">
+                <p className={`text-sm ${darkMode ? "text-neutral-300" : "text-neutral-600"}`}>
+                  {t.deleteWarningText}
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold transition ${
+                      darkMode
+                        ? "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+                        : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                    }`}
+                  >
+                    {t.noKeepIt}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteStep(2)}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition shadow-sm"
+                  >
+                    {t.yesContinue}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Password Challenge */}
+            {deleteStep === 2 && (
+              <form onSubmit={handleDeleteSubmit} className="space-y-4">
+                <p className={`text-xs ${darkMode ? "text-neutral-400" : "text-neutral-500"}`}>
+                  {t.deletePasswordPrompt}
+                </p>
+
+                {deleteError && (
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-medium text-center">
+                    {deleteError}
+                  </div>
+                )}
+
+                <div>
+                  <input
+                    type="password"
+                    placeholder={t.currentPassword}
+                    value={deletePassword}
+                    onChange={(e) => {
+                      setDeleteError("");
+                      setDeletePassword(e.target.value);
+                    }}
+                    disabled={deleteLoading}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition ${
+                      darkMode
+                        ? "bg-neutral-950 border-neutral-800 text-white focus:border-red-500"
+                        : "bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-red-500"
+                    }`}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleteLoading}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold transition ${
+                      darkMode
+                        ? "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+                        : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                    }`}
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={deleteLoading}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
+                  >
+                    {deleteLoading ? t.deleting : t.confirmDelete}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, ShieldCheck } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
@@ -26,9 +26,16 @@ function Signup() {
   });
 
   const [signInData, setSignInData] = useState({
-    identifier: "", // Accepts Email or UAE Phone number
+    email: "",
     password: "",
   });
+
+  useEffect(() => {
+    const cachedUser = localStorage.getItem("currentUser");
+    if (cachedUser) {
+      navigate("/");
+    }
+  }, [navigate]);  
 
   const handleSignUpChange = (e) => {
     setError("");
@@ -93,10 +100,15 @@ function Signup() {
 
   const handleSignInSubmit = async (e) => {
     e.preventDefault();
-    const { identifier, password } = signInData;
+    const { email, password } = signInData;
 
-    if (!identifier.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       setError("Please fill in all fields.");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
@@ -105,7 +117,7 @@ function Signup() {
 
     try {
       const data = await signInUser({
-        identifier: identifier.trim(),
+        email: email.trim(),
         password,
       });
 
@@ -355,19 +367,19 @@ function Signup() {
           <form onSubmit={handleSignInSubmit} className="mt-7">
             <div className="mb-5">
               <label
-                htmlFor="signin-identifier"
+                htmlFor="signin-email"
                 className={`block text-sm font-medium mb-2 ${
                   darkMode ? "text-slate-300" : "text-slate-700"
                 }`}
               >
-                Email or Phone number
+                Email address
               </label>
               <input
-                id="signin-identifier"
-                name="identifier"
-                type="text"
-                placeholder="Enter email or UAE phone number"
-                value={signInData.identifier}
+                id="signin-email"
+                name="email"
+                type="email"
+                placeholder="Enter your email address"
+                value={signInData.email}
                 onChange={handleSignInChange}
                 disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${

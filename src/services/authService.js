@@ -70,53 +70,17 @@ export async function signUpUser({ fullName, email, phoneNumber, password }) {
 }
 
 /**
- * Signs in an existing user with either email or UAE phone number and password
+ * Signs in an existing user using email and password
  */
-export async function signInUser({ identifier, password }) {
-  const trimmed = identifier.trim();
-  let targetEmail = trimmed.toLowerCase();
-
-  // If input is not an email, process as a UAE phone number
-  if (!trimmed.includes('@')) {
-    const normalizedPhone = normalizeUAEPhone(trimmed);
-    if (!normalizedPhone) {
-      throw new Error('Please enter a valid email address or UAE mobile number.');
-    }
-
-    // Lookup user by phone number from profiles table
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('phone_number', normalizedPhone)
-      .maybeSingle();
-
-    if (profile?.email) {
-      targetEmail = profile.email;
-    } else {
-      // Fallback to local session check if profiles table lookup is unavailable
-      const cached = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (
-            parsed.user_metadata?.phone_number === normalizedPhone ||
-            parsed.phoneNumber === normalizedPhone
-          ) {
-            targetEmail = parsed.email;
-          }
-        } catch {
-          // Parsing failure fallback
-        }
-      }
-
-      if (targetEmail === trimmed.toLowerCase()) {
-        throw new Error('No account found with this phone number. Please sign in with email.');
-      }
-    }
+export async function signInUser({ email, password }) {
+  const trimmedEmail = email?.trim().toLowerCase();
+  
+  if (!trimmedEmail) {
+    throw new Error('Please enter your email address.');
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: targetEmail,
+    email: trimmedEmail,
     password: password,
   });
 
@@ -130,4 +94,33 @@ export async function signInUser({ identifier, password }) {
 export async function signOutUser() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+}
+
+/**
+ * Re-authenticates the current user with their password before permanently deleting the account
+ */
+export async function reauthenticateAndDelete(password) {
+  // 1. Get current logged-in user's email
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email) {
+    throw new Error("No active session found.");
+  }
+
+  // 2. Re-authenticate: verify password against Supabase
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: password,
+  });
+
+  if (signInError) {
+    throw new Error("Incorrect password. Please try again.");
+  }
+
+  // 3. Password verified! Call the backend RPC function
+  const { error: rpcError } = await supabase.rpc("delete_user_account");
+  if (rpcError) throw rpcError;
+
+  // 4. Wipe local session clean
+  await supabase.auth.signOut();
+  localStorage.removeItem("currentUser");
 }
