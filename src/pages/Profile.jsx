@@ -16,7 +16,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
-import { signOutUser, reauthenticateAndDelete } from "../services/authService";
+import { signOutUser, reauthenticateAndDelete, changeUserPassword } from "../services/authService";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -29,7 +29,8 @@ export default function Profile() {
     name: "User",
     email: "",
     phoneNumber: "",
-    rfidUid: "A3:5C:89:1F"
+    rfidUid: "A3:5C:89:1F",
+    passwordUpdatedAt: null
   });
 
   // Modals state
@@ -45,6 +46,7 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Wallet form state
   const [cardName, setCardName] = useState("");
@@ -58,6 +60,26 @@ export default function Profile() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Helper function for dynamic "last changed" relative time
+  const formatTimeAgo = (dateString, isAr) => {
+    if (!dateString) {
+      return isAr ? "لم يتغير بعد" : "Never changed";
+    }
+    const diff = Math.floor((new Date() - new Date(dateString)) / 1000); // difference in seconds
+
+    if (diff < 60) return isAr ? "الآن" : "Just now";
+    const minutes = Math.floor(diff / 60);
+    if (minutes < 60) return isAr ? `منذ ${minutes} دقيقة` : `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return isAr ? `منذ ${hours} ساعة` : `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return isAr ? `منذ ${days} يوم` : `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return isAr ? `منذ ${months} شهر` : `${months}mo ago`;
+    const years = Math.floor(days / 365);
+    return isAr ? `منذ ${years} سنة` : `${years}y ago`;
+  };
 
   // Load current user info on mount
   useEffect(() => {
@@ -90,7 +112,13 @@ export default function Profile() {
           parsed.rfidUid || 
           "A3:5C:89:1F";
 
-        setCurrentUser({ name, email, phoneNumber, rfidUid });
+        const passwordUpdatedAt = 
+          parsed.password_updated_at || 
+          parsed.user_metadata?.password_updated_at || 
+          parsed.created_at || 
+          null;
+
+        setCurrentUser({ name, email, phoneNumber, rfidUid, passwordUpdatedAt });
         setSelectedVehicle(vehicle);
       } catch {
         // Leave defaults if JSON parsing fails
@@ -109,7 +137,7 @@ export default function Profile() {
     navigate("/signup"); 
   };
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
     setPasswordError("");
     setPasswordSuccess("");
@@ -129,15 +157,26 @@ export default function Profile() {
       return;
     }
 
-    setPasswordSuccess(isArabic ? "تم تغيير كلمة المرور بنجاح!" : "Password changed successfully!");
-    
-    setTimeout(() => {
-      setShowPasswordModal(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordSuccess("");
-    }, 1500);
+    setPasswordLoading(true);
+    try {
+      await changeUserPassword(currentPassword, newPassword);
+      
+      const now = new Date().toISOString();
+      setCurrentUser(prev => ({ ...prev, passwordUpdatedAt: now }));
+      setPasswordSuccess(isArabic ? "تم تغيير كلمة المرور بنجاح!" : "Password changed successfully!");
+      
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordSuccess("");
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err.message || (isArabic ? "فشل تغيير كلمة المرور" : "Failed to change password."));
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const handleWalletSave = (e) => {
@@ -189,7 +228,7 @@ export default function Profile() {
     wallet: isArabic ? "المحفظة" : "Wallet",
     walletSubtitle: isArabic ? "إدارة بطاقات الائتمان وطرق الدفع" : "Manage payment methods",
     changePassword: isArabic ? "تغيير كلمة المرور" : "Change password",
-    lastChanged: isArabic ? "آخر تغيير قبل 3 أشهر" : "Last changed 3 months ago",
+    lastChangedPrefix: isArabic ? "آخر تغيير: " : "Last changed ",
     appearance: isArabic ? "المظهر" : "Appearance",
     darkMode: isArabic ? "الوضع الداكن" : "Dark mode",
     lightMode: isArabic ? "الوضع الفاتح" : "Light mode",
@@ -201,6 +240,7 @@ export default function Profile() {
     newPassword: isArabic ? "كلمة المرور الجديدة" : "New Password",
     confirmPassword: isArabic ? "تأكيد كلمة المرور الجديدة" : "Confirm New Password",
     saveChanges: isArabic ? "حفظ التغييرات" : "Save Changes",
+    saving: isArabic ? "جاري الحفظ..." : "Saving...",
     cancel: isArabic ? "إلغاء" : "Cancel",
     cardHolder: isArabic ? "اسم حامل البطاقة" : "Cardholder Name",
     cardNumber: isArabic ? "رقم البطاقة" : "Card Number",
@@ -622,7 +662,7 @@ export default function Profile() {
                       darkMode ? "text-neutral-400" : "text-neutral-500"
                     }`}
                   >
-                    {t.lastChanged}
+                    {t.lastChangedPrefix}{formatTimeAgo(currentUser.passwordUpdatedAt, isArabic)}
                   </p>
                 </div>
               </div>
@@ -894,8 +934,8 @@ export default function Profile() {
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 py-3 rounded-xl font-semibold text-sm text-white transition ${
-                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] hover:opacity-90"
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm transition ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] text-white hover:opacity-90"
                   }`}
                 >
                   {t.saveChanges}
@@ -946,8 +986,12 @@ export default function Profile() {
                 <label className="block text-xs font-semibold mb-1 opacity-80">{t.currentPassword}</label>
                 <input
                   type="password"
+                  disabled={passwordLoading}
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPasswordError("");
+                    setCurrentPassword(e.target.value);
+                  }}
                   className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
                     darkMode 
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
@@ -961,8 +1005,12 @@ export default function Profile() {
                 <label className="block text-xs font-semibold mb-1 opacity-80">{t.newPassword}</label>
                 <input
                   type="password"
+                  disabled={passwordLoading}
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPasswordError("");
+                    setNewPassword(e.target.value);
+                  }}
                   className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
                     darkMode 
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
@@ -976,8 +1024,12 @@ export default function Profile() {
                 <label className="block text-xs font-semibold mb-1 opacity-80">{t.confirmPassword}</label>
                 <input
                   type="password"
+                  disabled={passwordLoading}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPasswordError("");
+                    setConfirmPassword(e.target.value);
+                  }}
                   className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
                     darkMode 
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
@@ -990,6 +1042,7 @@ export default function Profile() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
+                  disabled={passwordLoading}
                   onClick={() => setShowPasswordModal(false)}
                   className={`flex-1 py-3 rounded-xl border font-semibold text-sm transition ${
                     darkMode ? "border-neutral-800 hover:bg-neutral-800" : "border-neutral-200 hover:bg-neutral-100"
@@ -999,11 +1052,12 @@ export default function Profile() {
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 py-3 rounded-xl font-semibold text-sm text-white transition ${
-                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] hover:opacity-90"
+                  disabled={passwordLoading}
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] text-white hover:opacity-90"
                   }`}
                 >
-                  {t.saveChanges}
+                  {passwordLoading ? t.saving : t.saveChanges}
                 </button>
               </div>
             </form>

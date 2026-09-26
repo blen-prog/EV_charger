@@ -124,3 +124,62 @@ export async function reauthenticateAndDelete(password) {
   await supabase.auth.signOut();
   localStorage.removeItem("currentUser");
 }
+
+// ============================================================================
+// PASSWORD UPDATE SERVICE
+// ============================================================================
+// Verifies the user's existing credentials before applying a new password.
+// Also synchronizes the updated timestamp with client-side cached user state.
+export const changeUserPassword = async (currentPassword, newPassword) => {
+  // Step 1: Retrieve the active session to verify the user is logged in
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.user?.email) {
+    throw new Error("No active session found. Please log in again.");
+  }
+
+  // Step 2: Security challenge - re-authenticate using current password
+  // This prevents unauthorized password changes if a device is left unattended
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: session.user.email,
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    throw new Error("Current password is incorrect.");
+  }
+
+  // Step 3: Dispatch the new password AND save timestamp in Supabase user metadata
+  const now = new Date().toISOString();
+
+  const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+    data: {
+      password_updated_at: now, // Persisted permanently in Supabase database
+    },
+  });
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  // Step 4: Persist the update timestamp to local/session storage
+  const rawUserData = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
+  if (rawUserData) {
+    try {
+      const parsed = JSON.parse(rawUserData);
+      parsed.password_updated_at = now;
+      if (!parsed.user_metadata) parsed.user_metadata = {};
+      parsed.user_metadata.password_updated_at = now;
+
+      if (localStorage.getItem("currentUser")) {
+        localStorage.setItem("currentUser", JSON.stringify(parsed));
+      } else {
+        sessionStorage.setItem("currentUser", JSON.stringify(parsed));
+      }
+    } catch {
+      // Retain existing storage state if JSON parse fails
+    }
+  }
+
+  return true;
+};
