@@ -217,3 +217,44 @@ export const updateUserVehicle = async (vehicleName) => {
 
   return data;
 };
+
+// ============================================================================
+// PROFILE UPDATE SERVICE
+// ============================================================================
+// Updates user display name and phone number in Supabase user_metadata and local cache.
+export const updateUserProfileData = async (fullName, phoneNumber) => {
+  // Step 1: Push metadata update to Supabase
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      full_name: fullName,
+      phone: phoneNumber,
+      phone_number: phoneNumber,
+    },
+  });
+
+  if (error) throw error;
+
+  // Step 2: Sync updated profile with local storage
+  const rawUserData = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
+  if (rawUserData) {
+    try {
+      const parsed = JSON.parse(rawUserData);
+      if (!parsed.user_metadata) parsed.user_metadata = {};
+      parsed.user_metadata.full_name = fullName;
+      parsed.user_metadata.phone = phoneNumber;
+      parsed.user_metadata.phone_number = phoneNumber;
+      parsed.name = fullName;
+      parsed.phoneNumber = phoneNumber;
+
+      if (localStorage.getItem("currentUser")) {
+        localStorage.setItem("currentUser", JSON.stringify(parsed));
+      } else {
+        sessionStorage.setItem("currentUser", JSON.stringify(parsed));
+      }
+    } catch {
+      // Retain existing state if JSON parse fails
+    }
+  }
+
+  return data;
+};

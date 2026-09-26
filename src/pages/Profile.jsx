@@ -13,10 +13,17 @@ import {
   ShieldCheck,
   CreditCard,
   Radio,
-  AlertTriangle
+  AlertTriangle,
+  Edit3
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
-import { signOutUser, reauthenticateAndDelete, changeUserPassword, updateUserVehicle } from "../services/authService";
+import { 
+  signOutUser, 
+  reauthenticateAndDelete, 
+  changeUserPassword, 
+  updateUserVehicle, 
+  updateUserProfileData 
+} from "../services/authService";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -39,6 +46,14 @@ export default function Profile() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Edit Profile form state
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
 
   // Change password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -66,7 +81,7 @@ export default function Profile() {
     if (!dateString) {
       return isAr ? "لم يتغير بعد" : "Never changed";
     }
-    const diff = Math.floor((new Date() - new Date(dateString)) / 1000); // difference in seconds
+    const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
 
     if (diff < 60) return isAr ? "الآن" : "Just now";
     const minutes = Math.floor(diff / 60);
@@ -148,6 +163,45 @@ export default function Profile() {
     }
   };
 
+  const handleOpenEditModal = () => {
+    setEditName(currentUser.name || "");
+    setEditPhone(currentUser.phoneNumber || "");
+    setEditError("");
+    setEditSuccess("");
+    setShowEditModal(true);
+  };
+
+  const handleEditProfileSubmit = async (e) => {
+    e.preventDefault();
+    setEditError("");
+    setEditSuccess("");
+
+    if (!editName.trim()) {
+      setEditError(isArabic ? "الاسم مطلوب" : "Name is required");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      await updateUserProfileData(editName.trim(), editPhone.trim());
+      setCurrentUser(prev => ({
+        ...prev,
+        name: editName.trim(),
+        phoneNumber: editPhone.trim()
+      }));
+      setEditSuccess(isArabic ? "تم تحديث الملف الشخصي بنجاح!" : "Profile updated successfully!");
+
+      setTimeout(() => {
+        setShowEditModal(false);
+        setEditSuccess("");
+      }, 1200);
+    } catch (err) {
+      setEditError(err.message || (isArabic ? "فشل التحديث" : "Failed to update profile."));
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     setPasswordError("");
@@ -225,6 +279,9 @@ export default function Profile() {
   const t = {
     account: isArabic ? "الحساب" : "Account",
     profile: isArabic ? "الملف الشخصي" : "Profile",
+    editProfile: isArabic ? "تعديل الملف الشخصي" : "Edit Profile",
+    fullName: isArabic ? "الاسم الكامل" : "Full Name",
+    phoneNumber: isArabic ? "رقم الهاتف" : "Phone Number",
     verified: isArabic ? "حساب موثق" : "Verified account",
     virtualRfid: isArabic ? "مفتاح الشحن الرقمي" : "Virtual RFID Key",
     rfidSubtitle: isArabic ? "معرف بطاقة المحطة" : "Station Pass UID",
@@ -357,51 +414,66 @@ export default function Profile() {
 
         {/* User Badge Card */}
         <div
-          className={`rounded-3xl p-5 mb-4 border shadow-sm flex items-center gap-4 transition-colors ${
+          className={`rounded-3xl p-5 mb-4 border shadow-sm flex items-center justify-between gap-4 transition-colors ${
             darkMode
               ? "bg-neutral-900 border-neutral-800"
               : "bg-white border-neutral-200/60"
           }`}
         >
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl flex-shrink-0 bg-[#125833] text-white"
-          >
-            {userInitial}
-          </div>
+          <div className="flex items-center gap-4 overflow-hidden">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl flex-shrink-0 bg-[#125833] text-white"
+            >
+              {userInitial}
+            </div>
 
-          <div className="overflow-hidden">
-            <h2
-              className={`text-lg font-bold truncate ${
-                darkMode ? "text-white" : "text-neutral-900"
-              }`}
-            >
-              {currentUser.name}
-            </h2>
-            <p
-              className={`text-xs truncate ${
-                darkMode ? "text-neutral-400" : "text-neutral-500"
-              }`}
-            >
-              {currentUser.email}
-            </p>
-            {currentUser.phoneNumber && (
+            <div className="overflow-hidden">
+              <h2
+                className={`text-lg font-bold truncate ${
+                  darkMode ? "text-white" : "text-neutral-900"
+                }`}
+              >
+                {currentUser.name}
+              </h2>
               <p
-                className={`text-xs mb-1.5 truncate ${
+                className={`text-xs truncate ${
                   darkMode ? "text-neutral-400" : "text-neutral-500"
                 }`}
               >
-                {currentUser.phoneNumber}
+                {currentUser.email}
               </p>
-            )}
-            <div
-              className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
-                darkMode ? "text-[#4ade80]" : "text-[#125833]"
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{t.verified}</span>
+              {currentUser.phoneNumber && (
+                <p
+                  className={`text-xs mb-1.5 truncate ${
+                    darkMode ? "text-neutral-400" : "text-neutral-500"
+                  }`}
+                >
+                  {currentUser.phoneNumber}
+                </p>
+              )}
+              <div
+                className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+                  darkMode ? "text-[#4ade80]" : "text-[#125833]"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>{t.verified}</span>
+              </div>
             </div>
           </div>
+
+          {/* Edit Profile Button */}
+          <button
+            onClick={handleOpenEditModal}
+            className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 transition ${
+              darkMode 
+                ? "bg-neutral-800 hover:bg-neutral-700 text-neutral-300" 
+                : "bg-neutral-100 hover:bg-neutral-200 text-neutral-600"
+            }`}
+            title={t.editProfile}
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Virtual RFID Key Card */}
@@ -715,6 +787,107 @@ export default function Profile() {
         </div>
 
       </div>
+
+      {/* EDIT PROFILE MODAL */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-colors ${
+              darkMode
+                ? "bg-neutral-900 border-neutral-800 text-white"
+                : "bg-white border-neutral-100 text-neutral-900"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">{t.editProfile}</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-1 rounded-full hover:bg-neutral-500/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditProfileSubmit} className="space-y-4">
+              {editError && (
+                <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                  {editError}
+                </div>
+              )}
+              {editSuccess && (
+                <div className="p-3 text-xs rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  {editSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 opacity-80">
+                  {t.fullName}
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={editLoading}
+                  value={editName}
+                  onChange={(e) => {
+                    setEditError("");
+                    setEditName(e.target.value);
+                  }}
+                  className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode 
+                      ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                      : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                  }`}
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 opacity-80">
+                  {t.phoneNumber}
+                </label>
+                <input
+                  type="tel"
+                  disabled={editLoading}
+                  value={editPhone}
+                  onChange={(e) => {
+                    setEditError("");
+                    setEditPhone(e.target.value);
+                  }}
+                  className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode 
+                      ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                      : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                  }`}
+                  placeholder="+971500000000"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={editLoading}
+                  onClick={() => setShowEditModal(false)}
+                  className={`flex-1 py-3 rounded-xl border font-semibold text-sm transition ${
+                    darkMode ? "border-neutral-800 hover:bg-neutral-800" : "border-neutral-200 hover:bg-neutral-100"
+                  }`}
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] text-white hover:opacity-90"
+                  }`}
+                >
+                  {editLoading ? t.saving : t.saveChanges}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* VEHICLE SELECTION MODAL */}
       {showVehicleModal && (
