@@ -16,7 +16,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
-import { signOutUser, reauthenticateAndDelete, changeUserPassword } from "../services/authService";
+import { signOutUser, reauthenticateAndDelete, changeUserPassword, updateUserVehicle } from "../services/authService";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -135,6 +135,17 @@ export default function Profile() {
     localStorage.removeItem("currentUser");
     sessionStorage.removeItem("currentUser");
     navigate("/signup"); 
+  };
+
+  const handleSelectVehicle = async (vehicleName) => {
+    setSelectedVehicle(vehicleName);
+    setShowVehicleModal(false);
+
+    try {
+      await updateUserVehicle(vehicleName);
+    } catch (err) {
+      console.error("Failed to update vehicle:", err.message);
+    }
   };
 
   const handlePasswordChange = async (e) => {
@@ -729,10 +740,7 @@ export default function Profile() {
               {evVehicles.map((vehicle) => (
                 <button
                   key={vehicle.name}
-                  onClick={() => {
-                    setSelectedVehicle(vehicle.name);
-                    setShowVehicleModal(false);
-                  }}
+                  onClick={() => handleSelectVehicle(vehicle.name)}
                   className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition ${
                     selectedVehicle === vehicle.name
                       ? darkMode

@@ -183,3 +183,37 @@ export const changeUserPassword = async (currentPassword, newPassword) => {
 
   return true;
 };
+
+// ============================================================================
+// VEHICLE UPDATE SERVICE
+// ============================================================================
+// Saves the selected vehicle to Supabase user_metadata and synchronizes local storage.
+export const updateUserVehicle = async (vehicleName) => {
+  // Step 1: Update metadata in Supabase
+  const { data, error } = await supabase.auth.updateUser({
+    data: { vehicle: vehicleName },
+  });
+
+  if (error) throw error;
+
+  // Step 2: Sync updated vehicle into local/session storage cache
+  const rawUserData = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
+  if (rawUserData) {
+    try {
+      const parsed = JSON.parse(rawUserData);
+      if (!parsed.user_metadata) parsed.user_metadata = {};
+      parsed.user_metadata.vehicle = vehicleName;
+      parsed.vehicle = vehicleName;
+
+      if (localStorage.getItem("currentUser")) {
+        localStorage.setItem("currentUser", JSON.stringify(parsed));
+      } else {
+        sessionStorage.setItem("currentUser", JSON.stringify(parsed));
+      }
+    } catch {
+      // Retain existing storage state if JSON parse fails
+    }
+  }
+
+  return data;
+};
