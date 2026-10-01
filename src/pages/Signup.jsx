@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { X, ShieldCheck } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
-import { authenticateUser, allowedUsers } from "../data/users";
+import { signUpUser, signInUser } from "../services/authService";
 
 function Signup() {
   const navigate = useNavigate();
@@ -10,6 +11,12 @@ function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState("signup");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Forgot password modal UI state
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   const [signUpData, setSignUpData] = useState({
     fullName: "",
@@ -19,9 +26,16 @@ function Signup() {
   });
 
   const [signInData, setSignInData] = useState({
-    identifier: "", // Accepts either Email or Phone Number
+    email: "",
     password: "",
   });
+
+  useEffect(() => {
+    const cachedUser = localStorage.getItem("currentUser");
+    if (cachedUser) {
+      navigate("/");
+    }
+  }, [navigate]);  
 
   const handleSignUpChange = (e) => {
     setError("");
@@ -40,10 +54,10 @@ function Signup() {
   };
 
   const validateEmail = (email) => {
-    return email.trim().toLowerCase().endsWith("@gmail.com");
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   };
 
-  const handleSignUpSubmit = (e) => {
+  const handleSignUpSubmit = async (e) => {
     e.preventDefault();
     const { fullName, email, phoneNumber, password } = signUpData;
 
@@ -53,62 +67,78 @@ function Signup() {
     }
 
     if (!validateEmail(email)) {
-      setError("Email address must end with @gmail.com");
+      setError("Please enter a valid email address.");
       return;
     }
 
-    // Check if user already exists
-    const existingUser = allowedUsers.find(
-      (u) =>
-        u.email.toLowerCase() === email.trim().toLowerCase() ||
-        u.phoneNumber.replace(/\s+/g, "") === phoneNumber.trim().replace(/\s+/g, "")
-    );
-
-    if (existingUser) {
-      setError("An account with this email or phone number already exists.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
-    // Create new user object with formatted ID
-    const newUser = {
-      id: `USR-00${allowedUsers.length + 1}`,
-      name: fullName.trim(),
-      email: email.trim(),
-      phoneNumber: phoneNumber.trim(),
-      password: password,
-      vehicle: "Electric Vehicle"
-    };
-
-    // Add to allowed users list
-    allowedUsers.push(newUser);
-
-    // Save current session
-    localStorage.setItem("currentUser", JSON.stringify(newUser));
+    setLoading(true);
     setError("");
-    navigate("/");
+
+    try {
+      const data = await signUpUser({
+        fullName,
+        email,
+        phoneNumber,
+        password,
+      });
+
+      if (data?.user) {
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
+        navigate("/");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to create account.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignInSubmit = (e) => {
+  const handleSignInSubmit = async (e) => {
     e.preventDefault();
-    const { identifier, password } = signInData;
+    const { email, password } = signInData;
 
-    if (!identifier.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       setError("Please fill in all fields.");
       return;
     }
 
-    // Authenticate credentials against allowedUsers dataset
-    const user = authenticateUser(identifier, password);
-
-    if (!user) {
-      setError("Invalid email/phone number or password.");
+    if (!validateEmail(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
+    setLoading(true);
     setError("");
-    // Store authenticated user session
-    localStorage.setItem("currentUser", JSON.stringify(user));
-    navigate("/");
+
+    try {
+      const data = await signInUser({
+        email: email.trim(),
+        password,
+      });
+
+      if (data?.user) {
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
+        navigate("/");
+      }
+    } catch (err) {
+      setError(err.message || "Invalid credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotSubmit = (e) => {
+    e.preventDefault();
+    if (!validateEmail(forgotEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    setForgotSuccess(true);
   };
 
   const handleTabSwitch = (tab) => {
@@ -228,6 +258,7 @@ function Signup() {
                 placeholder="Enter your full name"
                 value={signUpData.fullName}
                 onChange={handleSignUpChange}
+                disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${
                   darkMode
                     ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-[#125833]"
@@ -249,9 +280,10 @@ function Signup() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="Enter your email address (@gmail.com)"
+                placeholder="Enter your email address (e.g., name@example.com)"
                 value={signUpData.email}
                 onChange={handleSignUpChange}
+                disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${
                   darkMode
                     ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-[#125833]"
@@ -273,9 +305,10 @@ function Signup() {
                 id="phoneNumber"
                 name="phoneNumber"
                 type="tel"
-                placeholder="e.g. +971501234567 or +251911234567"
+                placeholder="e.g. 0501234567 or +971501234567"
                 value={signUpData.phoneNumber}
                 onChange={handleSignUpChange}
+                disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${
                   darkMode
                     ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-[#125833]"
@@ -300,6 +333,7 @@ function Signup() {
                 placeholder="Create a password"
                 value={signUpData.password}
                 onChange={handleSignUpChange}
+                disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${
                   darkMode
                     ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-[#125833]"
@@ -310,9 +344,10 @@ function Signup() {
 
             <button
               type="submit"
-              className="w-full text-center px-5 py-4 rounded-xl bg-[#125833] hover:bg-[#0d4226] text-white font-semibold transition"
+              disabled={loading}
+              className="w-full text-center px-5 py-4 rounded-xl bg-[#125833] hover:bg-[#0d4226] text-white font-semibold transition disabled:opacity-50"
             >
-              Create my account
+              {loading ? "Creating account..." : "Create my account"}
             </button>
 
             <button
@@ -332,20 +367,21 @@ function Signup() {
           <form onSubmit={handleSignInSubmit} className="mt-7">
             <div className="mb-5">
               <label
-                htmlFor="signin-identifier"
+                htmlFor="signin-email"
                 className={`block text-sm font-medium mb-2 ${
                   darkMode ? "text-slate-300" : "text-slate-700"
                 }`}
               >
-                Email or Phone number
+                Email address
               </label>
               <input
-                id="signin-identifier"
-                name="identifier"
-                type="text"
-                placeholder="Enter email (@gmail.com) or phone number"
-                value={signInData.identifier}
+                id="signin-email"
+                name="email"
+                type="email"
+                placeholder="Enter your email address"
+                value={signInData.email}
                 onChange={handleSignInChange}
+                disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${
                   darkMode
                     ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-[#125833]"
@@ -355,14 +391,27 @@ function Signup() {
             </div>
 
             <div className="mb-5">
-              <label
-                htmlFor="signin-password"
-                className={`block text-sm font-medium mb-2 ${
-                  darkMode ? "text-slate-300" : "text-slate-700"
-                }`}
-              >
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label
+                  htmlFor="signin-password"
+                  className={`block text-sm font-medium ${
+                    darkMode ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotModal(true);
+                    setForgotSuccess(false);
+                    setForgotEmail("");
+                  }}
+                  className="text-xs font-semibold text-[#125833] hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <input
                 id="signin-password"
                 name="password"
@@ -370,6 +419,7 @@ function Signup() {
                 placeholder="Enter your password"
                 value={signInData.password}
                 onChange={handleSignInChange}
+                disabled={loading}
                 className={`w-full px-4 py-3.5 rounded-xl border outline-none transition ${
                   darkMode
                     ? "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-[#125833]"
@@ -380,9 +430,10 @@ function Signup() {
 
             <button
               type="submit"
-              className="w-full text-center px-5 py-4 rounded-xl bg-[#125833] hover:bg-[#0d4226] text-white font-semibold transition"
+              disabled={loading}
+              className="w-full text-center px-5 py-4 rounded-xl bg-[#125833] hover:bg-[#0d4226] text-white font-semibold transition disabled:opacity-50"
             >
-              Sign in
+              {loading ? "Signing in..." : "Sign in"}
             </button>
 
             <button
@@ -435,6 +486,75 @@ function Signup() {
           </button>
         </div>
       </div>
+
+      {/* Forgot Password Modal (UI mockup) */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-colors ${
+              darkMode
+                ? "bg-slate-900 border-slate-800 text-white"
+                : "bg-white border-slate-100 text-slate-900"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-base font-bold">Reset password</h3>
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="p-1 rounded-full hover:bg-neutral-500/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {!forgotSuccess ? (
+              <form onSubmit={handleForgotSubmit} className="space-y-4">
+                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Enter your email address to receive password reset instructions.
+                </p>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode
+                      ? "bg-slate-950 border-slate-800 focus:border-[#125833]"
+                      : "bg-slate-50 border-slate-200 focus:border-[#125833]"
+                  }`}
+                />
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-[#125833] hover:bg-[#0d4226] text-white font-semibold rounded-xl text-sm transition"
+                >
+                  Send reset link
+                </button>
+              </form>
+            ) : (
+              <div className="text-center py-3">
+                <div className="w-10 h-10 mx-auto rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-2">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold mb-1">Check your inbox</h4>
+                <p className={`text-xs mb-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  We sent a reset link to <span className="font-semibold text-[#125833]">{forgotEmail}</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition ${
+                    darkMode ? "bg-slate-800 text-slate-200 hover:bg-slate-700" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

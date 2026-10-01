@@ -11,21 +11,33 @@ import {
   Check, 
   X, 
   ShieldCheck,
-  CreditCard 
+  CreditCard,
+  Radio,
+  AlertTriangle,
+  Edit3
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
+import { 
+  signOutUser, 
+  reauthenticateAndDelete, 
+  changeUserPassword, 
+  updateUserVehicle, 
+  updateUserProfileData 
+} from "../services/authService";
 
 export default function Profile() {
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode, isArabic, toggleArabic } = useTheme();
 
-  const [selectedVehicle, setSelectedVehicle] = useState("Tesla Model 3");
+  const [selectedVehicle, setSelectedVehicle] = useState("Electric Vehicle");
 
   // Logged-in user state
   const [currentUser, setCurrentUser] = useState({
-    name: "Blen",
-    email: "blen@example.com",
-    phoneNumber: "+251911234567"
+    name: "User",
+    email: "",
+    phoneNumber: "",
+    rfidUid: "A3:5C:89:1F",
+    passwordUpdatedAt: null
   });
 
   // Modals state
@@ -33,6 +45,15 @@ export default function Profile() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Edit Profile form state
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
 
   // Change password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -40,6 +61,7 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Wallet form state
   const [cardName, setCardName] = useState("");
@@ -48,33 +70,139 @@ export default function Profile() {
   const [cardCvv, setCardCvv] = useState("");
   const [walletSuccess, setWalletSuccess] = useState("");
 
+  // Delete account state
+  const [deleteStep, setDeleteStep] = useState(1); // 1 = Confirm, 2 = Password
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Helper function for dynamic "last changed" relative time
+  const formatTimeAgo = (dateString, isAr) => {
+    if (!dateString) {
+      return isAr ? "لم يتغير بعد" : "Never changed";
+    }
+    const diff = Math.floor((new Date() - new Date(dateString)) / 1000);
+
+    if (diff < 60) return isAr ? "الآن" : "Just now";
+    const minutes = Math.floor(diff / 60);
+    if (minutes < 60) return isAr ? `منذ ${minutes} دقيقة` : `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return isAr ? `منذ ${hours} ساعة` : `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return isAr ? `منذ ${days} يوم` : `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return isAr ? `منذ ${months} شهر` : `${months}mo ago`;
+    const years = Math.floor(days / 365);
+    return isAr ? `منذ ${years} سنة` : `${years}y ago`;
+  };
+
   // Load current user info on mount
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
-    if (loggedInUser) {
+    const rawUserData = localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser");
+    if (rawUserData) {
       try {
-        const parsed = JSON.parse(loggedInUser);
-        setCurrentUser({
-          name: parsed.name || "Blen",
-          email: parsed.email || "blen@example.com",
-          phoneNumber: parsed.phoneNumber || "+251911234567"
-        });
-        if (parsed.vehicle) {
-          setSelectedVehicle(parsed.vehicle);
-        }
-      } catch (e) {
-        // Fallback if stored as plain text or mock
+        const parsed = JSON.parse(rawUserData);
+
+        const name = 
+          parsed.user_metadata?.full_name || 
+          parsed.name || 
+          parsed.email?.split("@")[0] || 
+          "User";
+
+        const email = parsed.email || "";
+
+        const phoneNumber = 
+          parsed.user_metadata?.phone || 
+          parsed.user_metadata?.phone_number || 
+          parsed.phoneNumber || 
+          "";
+
+        const vehicle = 
+          parsed.user_metadata?.vehicle || 
+          parsed.vehicle || 
+          "Electric Vehicle";
+
+        const rfidUid = 
+          parsed.user_metadata?.rfid_uid || 
+          parsed.rfidUid || 
+          "A3:5C:89:1F";
+
+        const passwordUpdatedAt = 
+          parsed.password_updated_at || 
+          parsed.user_metadata?.password_updated_at || 
+          parsed.created_at || 
+          null;
+
+        setCurrentUser({ name, email, phoneNumber, rfidUid, passwordUpdatedAt });
+        setSelectedVehicle(vehicle);
+      } catch {
+        // Leave defaults if JSON parsing fails
       }
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+    } catch {
+      // Proceed with local cleanup regardless of network status
+    }
     localStorage.removeItem("currentUser");
     sessionStorage.removeItem("currentUser");
     navigate("/signup"); 
   };
 
-  const handlePasswordChange = (e) => {
+  const handleSelectVehicle = async (vehicleName) => {
+    setSelectedVehicle(vehicleName);
+    setShowVehicleModal(false);
+
+    try {
+      await updateUserVehicle(vehicleName);
+    } catch (err) {
+      console.error("Failed to update vehicle:", err.message);
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    setEditName(currentUser.name || "");
+    setEditPhone(currentUser.phoneNumber || "");
+    setEditError("");
+    setEditSuccess("");
+    setShowEditModal(true);
+  };
+
+  const handleEditProfileSubmit = async (e) => {
+    e.preventDefault();
+    setEditError("");
+    setEditSuccess("");
+
+    if (!editName.trim()) {
+      setEditError(isArabic ? "الاسم مطلوب" : "Name is required");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      await updateUserProfileData(editName.trim(), editPhone.trim());
+      setCurrentUser(prev => ({
+        ...prev,
+        name: editName.trim(),
+        phoneNumber: editPhone.trim()
+      }));
+      setEditSuccess(isArabic ? "تم تحديث الملف الشخصي بنجاح!" : "Profile updated successfully!");
+
+      setTimeout(() => {
+        setShowEditModal(false);
+        setEditSuccess("");
+      }, 1200);
+    } catch (err) {
+      setEditError(err.message || (isArabic ? "فشل التحديث" : "Failed to update profile."));
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
     setPasswordError("");
     setPasswordSuccess("");
@@ -94,15 +222,26 @@ export default function Profile() {
       return;
     }
 
-    setPasswordSuccess(isArabic ? "تم تغيير كلمة المرور بنجاح!" : "Password changed successfully!");
-    
-    setTimeout(() => {
-      setShowPasswordModal(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordSuccess("");
-    }, 1500);
+    setPasswordLoading(true);
+    try {
+      await changeUserPassword(currentPassword, newPassword);
+      
+      const now = new Date().toISOString();
+      setCurrentUser(prev => ({ ...prev, passwordUpdatedAt: now }));
+      setPasswordSuccess(isArabic ? "تم تغيير كلمة المرور بنجاح!" : "Password changed successfully!");
+      
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordSuccess("");
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err.message || (isArabic ? "فشل تغيير كلمة المرور" : "Failed to change password."));
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const handleWalletSave = (e) => {
@@ -115,11 +254,41 @@ export default function Profile() {
     }, 1500);
   };
 
-  // Translations dictionary for English and Arabic
+  const handleDeleteSubmit = async (e) => {
+    e.preventDefault();
+    if (!deletePassword.trim()) {
+      setDeleteError(isArabic ? "يرجى إدخال كلمة المرور" : "Please enter your password.");
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError("");
+
+    try {
+      await reauthenticateAndDelete(deletePassword);
+      setShowDeleteModal(false);
+      navigate("/signup");
+    } catch (err) {
+      setDeleteError(err.message || (isArabic ? "فشل حذف الحساب" : "Failed to delete account."));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Translations dictionary
   const t = {
     account: isArabic ? "الحساب" : "Account",
     profile: isArabic ? "الملف الشخصي" : "Profile",
+    editProfile: isArabic ? "تعديل الملف الشخصي" : "Edit Profile",
+    fullName: isArabic ? "الاسم الكامل" : "Full Name",
+    phoneNumber: isArabic ? "رقم الهاتف" : "Phone Number",
     verified: isArabic ? "حساب موثق" : "Verified account",
+    virtualRfid: isArabic ? "مفتاح الشحن الرقمي" : "Virtual RFID Key",
+    rfidSubtitle: isArabic ? "معرف بطاقة المحطة" : "Station Pass UID",
+    rfidActive: isArabic ? "نشط" : "Active",
+    rfidDescription: isArabic 
+      ? "استخدم هذا المعرف في محطات الشحن أو قم بربط بطاقة فعلية لاحقاً." 
+      : "Tap or enter this digital UID at Volto charging stations.",
     preferences: isArabic ? "التفضيلات" : "Preferences",
     myVehicle: isArabic ? "مركبتي" : "My vehicle",
     language: isArabic ? "اللغة" : "Language",
@@ -127,24 +296,33 @@ export default function Profile() {
     wallet: isArabic ? "المحفظة" : "Wallet",
     walletSubtitle: isArabic ? "إدارة بطاقات الائتمان وطرق الدفع" : "Manage payment methods",
     changePassword: isArabic ? "تغيير كلمة المرور" : "Change password",
-    lastChanged: isArabic ? "آخر تغيير قبل 3 أشهر" : "Last changed 3 months ago",
+    lastChangedPrefix: isArabic ? "آخر تغيير: " : "Last changed ",
     appearance: isArabic ? "المظهر" : "Appearance",
     darkMode: isArabic ? "الوضع الداكن" : "Dark mode",
     lightMode: isArabic ? "الوضع الفاتح" : "Light mode",
     logOut: isArabic ? "تسجيل الخروج" : "Log out",
-    home: isArabic ? "الرئيسية" : "Home",
-    transactions: isArabic ? "المعاملات" : "Transactions",
+    deleteAccount: isArabic ? "حذف الحساب" : "Delete account",
     selectVehicle: isArabic ? "اختر المركبة الكهربائية" : "Select EV Vehicle",
     selectLanguage: isArabic ? "اختر اللغة" : "Select Language",
     currentPassword: isArabic ? "كلمة المرور الحالية" : "Current Password",
     newPassword: isArabic ? "كلمة المرور الجديدة" : "New Password",
     confirmPassword: isArabic ? "تأكيد كلمة المرور الجديدة" : "Confirm New Password",
     saveChanges: isArabic ? "حفظ التغييرات" : "Save Changes",
+    saving: isArabic ? "جاري الحفظ..." : "Saving...",
     cancel: isArabic ? "إلغاء" : "Cancel",
     cardHolder: isArabic ? "اسم حامل البطاقة" : "Cardholder Name",
     cardNumber: isArabic ? "رقم البطاقة" : "Card Number",
     expiryDate: isArabic ? "تاريخ الانتهاء" : "Expiry Date",
     cvv: isArabic ? "رمز الأمان (CVV)" : "CVV",
+    deleteConfirmTitle: isArabic ? "حذف الحساب نهائياً" : "Delete Account",
+    deleteWarningText: isArabic 
+      ? "هل أنت متأكد أنك تريد حذف حسابك؟ سيتم إزالة جميع سجلات الشحن والبيانات والمفتاح الرقمي نهائياً." 
+      : "Are you sure you want to delete your account? All your charging history and virtual RFID key will be permanently removed.",
+    noKeepIt: isArabic ? "لا، الاحتفاظ بالحساب" : "No, keep it",
+    yesContinue: isArabic ? "نعم، متابعة" : "Yes, continue",
+    deletePasswordPrompt: isArabic ? "لأمانك، يرجى إدخال كلمة المرور للتأكيد." : "For your security, please enter your password to confirm permanent deletion.",
+    confirmDelete: isArabic ? "تأكيد الحذف" : "Confirm Delete",
+    deleting: isArabic ? "جاري الحذف..." : "Deleting...",
   };
 
   const evVehicles = [
@@ -162,6 +340,8 @@ export default function Profile() {
     { name: "English", native: "English", code: "en" },
     { name: "Arabic", native: "العربية", code: "ar" },
   ];
+
+  const userInitial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U";
 
   return (
     <div
@@ -234,51 +414,107 @@ export default function Profile() {
 
         {/* User Badge Card */}
         <div
-          className={`rounded-3xl p-5 mb-6 border shadow-sm flex items-center gap-4 transition-colors ${
+          className={`rounded-3xl p-5 mb-4 border shadow-sm flex items-center justify-between gap-4 transition-colors ${
             darkMode
               ? "bg-neutral-900 border-neutral-800"
               : "bg-white border-neutral-200/60"
           }`}
         >
-          <div
-            className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl flex-shrink-0 ${
-              darkMode ? "bg-[#125833] text-white" : "bg-[#125833] text-white"
-            }`}
-          >
-            {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "B"}
-          </div>
-
-          <div className="overflow-hidden">
-            <h2
-              className={`text-lg font-bold truncate ${
-                darkMode ? "text-white" : "text-neutral-900"
-              }`}
-            >
-              {currentUser.name}
-            </h2>
-            <p
-              className={`text-xs truncate ${
-                darkMode ? "text-neutral-400" : "text-neutral-500"
-              }`}
-            >
-              {currentUser.email}
-            </p>
-            <p
-              className={`text-xs mb-1.5 truncate ${
-                darkMode ? "text-neutral-400" : "text-neutral-500"
-              }`}
-            >
-              {currentUser.phoneNumber}
-            </p>
+          <div className="flex items-center gap-4 overflow-hidden">
             <div
-              className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
-                darkMode ? "text-[#4ade80]" : "text-[#125833]"
-              }`}
+              className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl flex-shrink-0 bg-[#125833] text-white"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{t.verified}</span>
+              {userInitial}
+            </div>
+
+            <div className="overflow-hidden">
+              <h2
+                className={`text-lg font-bold truncate ${
+                  darkMode ? "text-white" : "text-neutral-900"
+                }`}
+              >
+                {currentUser.name}
+              </h2>
+              <p
+                className={`text-xs truncate ${
+                  darkMode ? "text-neutral-400" : "text-neutral-500"
+                }`}
+              >
+                {currentUser.email}
+              </p>
+              {currentUser.phoneNumber && (
+                <p
+                  className={`text-xs mb-1.5 truncate ${
+                    darkMode ? "text-neutral-400" : "text-neutral-500"
+                  }`}
+                >
+                  {currentUser.phoneNumber}
+                </p>
+              )}
+              <div
+                className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+                  darkMode ? "text-[#4ade80]" : "text-[#125833]"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>{t.verified}</span>
+              </div>
             </div>
           </div>
+
+          {/* Edit Profile Button */}
+          <button
+            onClick={handleOpenEditModal}
+            className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 transition ${
+              darkMode 
+                ? "bg-neutral-800 hover:bg-neutral-700 text-neutral-300" 
+                : "bg-neutral-100 hover:bg-neutral-200 text-neutral-600"
+            }`}
+            title={t.editProfile}
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Virtual RFID Key Card */}
+        <div
+          className={`rounded-3xl p-5 mb-6 border shadow-sm transition-colors ${
+            darkMode
+              ? "bg-neutral-900 border-neutral-800"
+              : "bg-[#E8F2EC] border-emerald-100"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Radio
+                className={`w-4 h-4 ${
+                  darkMode ? "text-[#4ade80]" : "text-[#125833]"
+                }`}
+              />
+              <span
+                className={`text-xs font-bold uppercase tracking-wider ${
+                  darkMode ? "text-[#4ade80]" : "text-[#125833]"
+                }`}
+              >
+                {t.virtualRfid}
+              </span>
+            </div>
+            <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+              {t.rfidActive}
+            </span>
+          </div>
+
+          <div
+            className={`font-mono text-base font-bold tracking-widest px-3 py-2 rounded-xl mb-2 ${
+              darkMode ? "bg-black/50 text-white" : "bg-white text-neutral-800"
+            }`}
+          >
+            {currentUser.rfidUid}
+          </div>
+
+          <p className="text-[11px] text-neutral-500 leading-relaxed">
+            {t.rfidDescription}
+          </p>
         </div>
 
         {/* Preferences Section */}
@@ -509,7 +745,7 @@ export default function Profile() {
                       darkMode ? "text-neutral-400" : "text-neutral-500"
                     }`}
                   >
-                    {t.lastChanged}
+                    {t.lastChangedPrefix}{formatTimeAgo(currentUser.passwordUpdatedAt, isArabic)}
                   </p>
                 </div>
               </div>
@@ -522,18 +758,136 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Log Out Button */}
-        <button
-          onClick={handleLogout}
-          className={`w-full py-4 rounded-2xl border font-semibold flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-500/10 transition ${
-            darkMode ? "border-neutral-800 bg-neutral-900" : "border-rose-200/60 bg-white"
-          }`}
-        >
-          <LogOut className="w-4 h-4" />
-          <span>{t.logOut}</span>
-        </button>
+        {/* Action Buttons: Log Out & Delete Account */}
+        <div className="space-y-3">
+          <button
+            onClick={handleLogout}
+            className={`w-full py-4 rounded-2xl border font-semibold flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-500/10 transition ${
+              darkMode ? "border-neutral-800 bg-neutral-900" : "border-rose-200/60 bg-white"
+            }`}
+          >
+            <LogOut className="w-4 h-4" />
+            <span>{t.logOut}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setDeleteStep(1);
+              setDeletePassword("");
+              setDeleteError("");
+              setShowDeleteModal(true);
+            }}
+            className={`w-full py-3.5 rounded-2xl border font-semibold flex items-center justify-center gap-2 text-red-500 hover:bg-red-500/10 transition text-sm ${
+              darkMode ? "border-neutral-800/80 bg-neutral-900/50" : "border-red-200/40 bg-white"
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span>{t.deleteAccount}</span>
+          </button>
+        </div>
 
       </div>
+
+      {/* EDIT PROFILE MODAL */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-colors ${
+              darkMode
+                ? "bg-neutral-900 border-neutral-800 text-white"
+                : "bg-white border-neutral-100 text-neutral-900"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">{t.editProfile}</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-1 rounded-full hover:bg-neutral-500/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditProfileSubmit} className="space-y-4">
+              {editError && (
+                <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                  {editError}
+                </div>
+              )}
+              {editSuccess && (
+                <div className="p-3 text-xs rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  {editSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 opacity-80">
+                  {t.fullName}
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={editLoading}
+                  value={editName}
+                  onChange={(e) => {
+                    setEditError("");
+                    setEditName(e.target.value);
+                  }}
+                  className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode 
+                      ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                      : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                  }`}
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 opacity-80">
+                  {t.phoneNumber}
+                </label>
+                <input
+                  type="tel"
+                  disabled={editLoading}
+                  value={editPhone}
+                  onChange={(e) => {
+                    setEditError("");
+                    setEditPhone(e.target.value);
+                  }}
+                  className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
+                    darkMode 
+                      ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
+                      : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
+                  }`}
+                  placeholder="+971500000000"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={editLoading}
+                  onClick={() => setShowEditModal(false)}
+                  className={`flex-1 py-3 rounded-xl border font-semibold text-sm transition ${
+                    darkMode ? "border-neutral-800 hover:bg-neutral-800" : "border-neutral-200 hover:bg-neutral-100"
+                  }`}
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] text-white hover:opacity-90"
+                  }`}
+                >
+                  {editLoading ? t.saving : t.saveChanges}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* VEHICLE SELECTION MODAL */}
       {showVehicleModal && (
@@ -559,10 +913,7 @@ export default function Profile() {
               {evVehicles.map((vehicle) => (
                 <button
                   key={vehicle.name}
-                  onClick={() => {
-                    setSelectedVehicle(vehicle.name);
-                    setShowVehicleModal(false);
-                  }}
+                  onClick={() => handleSelectVehicle(vehicle.name)}
                   className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition ${
                     selectedVehicle === vehicle.name
                       ? darkMode
@@ -696,7 +1047,7 @@ export default function Profile() {
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
                       : "bg-neutral-50 border-neutral-200 focus:border-[#125833]"
                   }`}
-                  placeholder="Blen"
+                  placeholder={currentUser.name || "Cardholder Name"}
                 />
               </div>
 
@@ -764,8 +1115,8 @@ export default function Profile() {
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 py-3 rounded-xl font-semibold text-sm text-white transition ${
-                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] hover:opacity-90"
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm transition ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] text-white hover:opacity-90"
                   }`}
                 >
                   {t.saveChanges}
@@ -816,8 +1167,12 @@ export default function Profile() {
                 <label className="block text-xs font-semibold mb-1 opacity-80">{t.currentPassword}</label>
                 <input
                   type="password"
+                  disabled={passwordLoading}
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPasswordError("");
+                    setCurrentPassword(e.target.value);
+                  }}
                   className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
                     darkMode 
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
@@ -831,8 +1186,12 @@ export default function Profile() {
                 <label className="block text-xs font-semibold mb-1 opacity-80">{t.newPassword}</label>
                 <input
                   type="password"
+                  disabled={passwordLoading}
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPasswordError("");
+                    setNewPassword(e.target.value);
+                  }}
                   className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
                     darkMode 
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
@@ -846,8 +1205,12 @@ export default function Profile() {
                 <label className="block text-xs font-semibold mb-1 opacity-80">{t.confirmPassword}</label>
                 <input
                   type="password"
+                  disabled={passwordLoading}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPasswordError("");
+                    setConfirmPassword(e.target.value);
+                  }}
                   className={`w-full p-3 rounded-xl border text-sm outline-none transition ${
                     darkMode 
                       ? "bg-neutral-950 border-neutral-800 focus:border-[#22c55e]" 
@@ -860,6 +1223,7 @@ export default function Profile() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
+                  disabled={passwordLoading}
                   onClick={() => setShowPasswordModal(false)}
                   className={`flex-1 py-3 rounded-xl border font-semibold text-sm transition ${
                     darkMode ? "border-neutral-800 hover:bg-neutral-800" : "border-neutral-200 hover:bg-neutral-100"
@@ -869,14 +1233,127 @@ export default function Profile() {
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 py-3 rounded-xl font-semibold text-sm text-white transition ${
-                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] hover:opacity-90"
+                  disabled={passwordLoading}
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
+                    darkMode ? "bg-[#22c55e] text-black hover:opacity-90 font-bold" : "bg-[#125833] text-white hover:opacity-90"
                   }`}
                 >
-                  {t.saveChanges}
+                  {passwordLoading ? t.saving : t.saveChanges}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ACCOUNT TWO-STEP MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-colors ${
+              darkMode
+                ? "bg-neutral-900 border-neutral-800 text-white"
+                : "bg-white border-neutral-100 text-neutral-900"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2 text-red-500">
+                <AlertTriangle className="w-5 h-5" />
+                <h3 className="text-base font-bold">{t.deleteConfirmTitle}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1 rounded-full hover:bg-neutral-500/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* STEP 1: Confirmation Warning */}
+            {deleteStep === 1 && (
+              <div className="space-y-4">
+                <p className={`text-sm ${darkMode ? "text-neutral-300" : "text-neutral-600"}`}>
+                  {t.deleteWarningText}
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold transition ${
+                      darkMode
+                        ? "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+                        : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                    }`}
+                  >
+                    {t.noKeepIt}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteStep(2)}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition shadow-sm"
+                  >
+                    {t.yesContinue}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Password Challenge */}
+            {deleteStep === 2 && (
+              <form onSubmit={handleDeleteSubmit} className="space-y-4">
+                <p className={`text-xs ${darkMode ? "text-neutral-400" : "text-neutral-500"}`}>
+                  {t.deletePasswordPrompt}
+                </p>
+
+                {deleteError && (
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-medium text-center">
+                    {deleteError}
+                  </div>
+                )}
+
+                <div>
+                  <input
+                    type="password"
+                    placeholder={t.currentPassword}
+                    value={deletePassword}
+                    onChange={(e) => {
+                      setDeleteError("");
+                      setDeletePassword(e.target.value);
+                    }}
+                    disabled={deleteLoading}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition ${
+                      darkMode
+                        ? "bg-neutral-950 border-neutral-800 text-white focus:border-red-500"
+                        : "bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-red-500"
+                    }`}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleteLoading}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold transition ${
+                      darkMode
+                        ? "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+                        : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                    }`}
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={deleteLoading}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
+                  >
+                    {deleteLoading ? t.deleting : t.confirmDelete}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
